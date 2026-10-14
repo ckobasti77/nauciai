@@ -4,6 +4,7 @@ import { Clapperboard, ImagePlus, Lock, ShieldCheck, Sparkles, UserRound, WandSp
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
+import { IgraArt } from "@/components/igra/igra-art";
 import { ElementEditor } from "@/components/crea/elements/element-editor";
 import { ElementCover, useMyElements, type MyElement } from "@/components/crea/elements/shared";
 import { ToolHeader } from "@/components/crea/tool-runner";
@@ -196,7 +197,7 @@ function HowItWorks({ locale }: { locale: Locale }) {
 function EmptyElements({ locale }: { locale: Locale }) {
   return (
     <div className="surface-inset grid place-items-center border border-dashed border-line bg-paper px-6 py-10 text-center">
-      <UserRound aria-hidden="true" className="size-10 text-muted" />
+      <IgraArt id="lik.piksi.misli" size="lg" decorative />
       <p className="mt-3 type-h4 text-ink">{T.emptyTitle[locale]}</p>
       <p className="mt-2 max-w-md type-body-sm font-semibold text-muted">{T.emptyBody[locale]}</p>
     </div>

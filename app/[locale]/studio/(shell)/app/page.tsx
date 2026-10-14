@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { StudioPage } from "@/components/app/studio-page";
-import { Panel, SectionHeader } from "@/components/ui/primitives";
+import { SectionHeader } from "@/components/ui/primitives";
 import { normalizeLocale, t, withLocale } from "@/lib/i18n";
 
 export async function generateMetadata({
@@ -39,15 +40,11 @@ export default async function StandaloneStudioRoute({
             "Describe what you want, pick a model and generate. Every generation is paid in credits.",
           )}
         />
-        <Panel className="p-6">
-          <p className="type-body type-measure font-bold text-muted">
-            {t(
+        <IgraState variant="offline" locale={locale} title={t(locale, "Baza nije povezana", "Database not connected")} body={t(
               locale,
               "Backend nije povezan na ovoj instalaciji, pa Crea ne može da generiše.",
               "The backend is not connected on this installation, so Crea cannot generate.",
-            )}
-          </p>
-        </Panel>
+            )} />
       </div>
     );
   }

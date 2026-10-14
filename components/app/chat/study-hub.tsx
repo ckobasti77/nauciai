@@ -24,6 +24,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { StudyEmptyArt } from "@/components/igra/chat/chat-empty";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HandUnderline, cn } from "@/components/ui/primitives";
@@ -576,7 +577,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                       <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), () => cancelPartner({ inviteId: invite.inviteId }), t(locale, "Poziv je otkazan.", "Invite cancelled."))} className={cn(SECONDARY_BUTTON, "min-h-9 px-3")}>{pendingKey === String(invite.inviteId) ? <Spinner /> : null}{t(locale, "Otkaži", "Cancel")}</button>
                     </article>
                   ))}
-                  {outgoing.status !== "LoadingFirstPage" && outgoing.results.length === 0 ? <p className="rounded-[16px] bg-paper px-3 py-4 text-center text-xs font-bold text-muted">{t(locale, "Nema poziva koji čekaju odgovor.", "No sent invites are awaiting a reply.")}</p> : null}
+                  {outgoing.status !== "LoadingFirstPage" && outgoing.results.length === 0 ? <IgraState compact variant="prazno" art="lik.sova.misli" locale={locale} title={t(locale, "Nema poziva koji čekaju odgovor.", "No sent invites are awaiting a reply.")} /> : null}
                   <LoadMoreButton locale={locale} status={outgoing.status} onLoadMore={() => outgoing.loadMore(6)} />
                 </div>
               </div>

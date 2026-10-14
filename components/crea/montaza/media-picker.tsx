@@ -6,6 +6,7 @@ import { Check, Image as ImageIcon, Music, Plus, Upload, Video } from "lucide-re
 import { useRef, useState } from "react";
 
 import type { MediaKind } from "@/components/crea/video/engine/media";
+import { IgraState } from "@/components/igra/igra-state";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
@@ -51,10 +52,10 @@ function GalleryGrid({
   const done = rows.filter((job): job is Row & { outputUrl: string } => job.status === "done" && job.outputUrl !== null && !isDemoPoster(job));
 
   if (isAuthenticated && jobs.status === "LoadingFirstPage") {
-    return <p className="type-body-sm font-bold text-muted">{T.loading[locale]}</p>;
+    return <IgraState compact variant="ucitavanje" locale={locale} title={T.loading[locale]} />;
   }
   if (done.length === 0) {
-    return <p className="surface-inset border border-dashed border-line bg-paper p-3 type-body-sm font-bold text-muted">{T.noGallery[locale]}</p>;
+    return <IgraState compact variant="prazno" art="prazno.radovi" locale={locale} title={T.noGallery[locale]} />;
   }
   return (
     <div className="space-y-3">

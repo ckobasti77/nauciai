@@ -5,6 +5,7 @@ import { Check, Music, RefreshCw, Upload, Video } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ToolSource } from "@/components/crea/tools/types";
+import { IgraState } from "@/components/igra/igra-state";
 import { FullScreenDropOverlay, useFullScreenDrop } from "@/components/studio/drop-slot";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
@@ -87,8 +88,8 @@ function GalleryList({ locale, kind, value, disabled, onPick }: { locale: Locale
   const jobs = usePaginatedQuery(api.studio.listMyJobs, isAuthenticated ? { kind } : "skip", { initialNumItems: 12 });
   const rows = (jobs.results ?? []) as unknown as Row[];
   const done = rows.filter((job): job is Row & { outputUrl: string } => job.status === "done" && job.outputUrl !== null && !isDemoPoster(job));
-  if (isAuthenticated && jobs.status === "LoadingFirstPage") return <p className="type-body-sm font-bold text-muted">{T.input.loading[locale]}</p>;
-  if (done.length === 0) return <p className="surface-inset border border-dashed border-line bg-paper p-3 type-body-sm font-bold text-muted">{T.input.empty[kind][locale]}</p>;
+  if (isAuthenticated && jobs.status === "LoadingFirstPage") return <IgraState compact variant="ucitavanje" locale={locale} title={T.input.loading[locale]} />;
+  if (done.length === 0) return <IgraState compact variant="prazno" art="prazno.radovi" locale={locale} title={T.input.empty[kind][locale]} />;
   return (
     <ul className="divide-y divide-line">
       {done.map((job) => {

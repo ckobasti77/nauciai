@@ -14,6 +14,7 @@ import {
   WorkMedia,
   workPath,
 } from "@/components/crea/community/crea-community-ui";
+import { IgraState } from "@/components/igra/igra-state";
 import { IgraArt } from "@/components/igra/igra-art";
 import { LinkButton, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
@@ -65,9 +66,7 @@ export function PublicWorkView({ locale, work }: { locale: Locale; work: PublicW
     return (
       <div className="mx-auto max-w-6xl space-y-5 text-ink">
         {header}
-        <p role="status" className="type-body font-bold text-muted">
-          {CREA_COMMUNITY_NAV.loading[locale]}
-        </p>
+        <IgraState compact variant="ucitavanje" locale={locale} title={CREA_COMMUNITY_NAV.loading[locale]} />
       </div>
     );
   }

@@ -7,6 +7,7 @@ import { ChatNotifications } from "@/components/app/chat/chat-notifications";
 import { ProfileSetupGate } from "@/components/app/profile-setup-gate";
 import { SuspensionGate } from "@/components/app/suspension-gate";
 import { ViewerPresence } from "@/components/app/viewer-presence";
+import { IgraOfflineNotice } from "@/components/igra/igra-offline-notice";
 import { IgraProgressProvider } from "@/components/igra/igra-progress-provider";
 import { getAppGateState } from "@/lib/app-gates";
 import { APP_SIDEBAR_COOKIE, parseAppSidebarPreferences } from "@/lib/app-sidebar-preferences";
@@ -38,6 +39,7 @@ export async function AppShell({ locale, children }: { locale: Locale; children:
         />
         {/* pb clears the fixed bottom tab bar in app-sidebar.tsx (min-h-14 + 2px border). */}
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 px-4 pt-5 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:px-6 md:px-8 md:pt-8 md:pb-8">
+          <IgraOfflineNotice locale={locale} />
           {gatedChildren}
         </main>
       </div>

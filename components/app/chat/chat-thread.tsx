@@ -23,6 +23,7 @@ import { insertAtTop, useAction, useMutation, usePaginatedQuery, useQuery } from
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { ChatComposer } from "@/components/app/chat/chat-composer";
 import { ReportDialog } from "@/components/app/chat/chat-dialogs";
 import { ConversationDetailsDialog } from "@/components/app/chat/chat-group-details";
@@ -701,7 +702,7 @@ export function ConversationPanel({
   }
 
   if (conversation === undefined) return <div className="grid h-full min-h-72 place-items-center"><Spinner size="xl" /></div>;
-  if (conversation === null) return <div className="grid h-full min-h-72 place-items-center p-6 text-center font-black">{label(locale, "Razgovor nije dostupan.", "Conversation is unavailable.")}</div>;
+  if (conversation === null) return <div className="grid h-full min-h-72 place-items-center p-6"><IgraState variant="404" locale={locale} action={null} title={label(locale, "Razgovor nije dostupan", "Conversation is unavailable")} body={label(locale, "Možda je obrisan ili više nisi u njemu. Izaberi drugi razgovor sa liste.", "It may have been deleted, or you are no longer in it. Pick another conversation from the list.")} /></div>;
 
   const pendingDirect = conversation.viewer.requestStatus === "pending";
   const invited = conversation.viewer.status === "invited";
@@ -795,7 +796,7 @@ export function ConversationPanel({
           <label className="flex h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4"><Search className="size-4 text-muted" /><span className="sr-only">{label(locale, "Pretraži sadržaj razgovora", "Search conversation content")}</span><input autoFocus value={messageSearchQuery} onChange={(event) => setMessageSearchQuery(event.target.value)} placeholder={label(locale, "Reč ili fraza u porukama", "Word or phrase in messages")} className="min-w-0 flex-1 bg-transparent text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" /><button type="button" onClick={() => { setMessageSearchOpen(false); setMessageSearchQuery(""); }} className="grid size-8 place-items-center rounded-full border border-line" aria-label={label(locale, "Zatvori pretragu", "Close search")}><X className="size-4" /></button></label>
           {messageSearchQuery.trim().length >= 2 ? <div className="mt-2 max-h-56 space-y-1.5 overflow-y-auto rounded-[16px] border-2 border-line bg-paper-strong p-2" aria-live="polite">
             {messageSearch.results.map((result) => <button key={result.messageId} type="button" onClick={() => jumpToMessage(result.messageId)} className="flex w-full items-start gap-3 rounded-[12px] px-3 py-2 text-left hover:bg-paper"><span className="min-w-0 flex-1"><span className="block type-caption font-black text-blue-mid dark:text-muted">{result.senderName}</span><span className="mt-0.5 line-clamp-2 block text-xs font-bold text-ink">{result.body}</span></span><span className="shrink-0 font-mono type-caption font-bold text-muted">{searchTimeFormatter.format(new Date(result.createdAt))}</span></button>)}
-            {!messageSearch.results.length && messageSearch.status !== "LoadingFirstPage" ? <p className="p-6 text-center text-xs font-black text-muted">{label(locale, "Nema pronađenih poruka.", "No messages found.")}</p> : null}
+            {!messageSearch.results.length && messageSearch.status !== "LoadingFirstPage" ? <IgraState compact variant="prazno" art="prazno.pretraga" locale={locale} title={label(locale, "Nema pronađenih poruka.", "No messages found.")} /> : null}
             {messageSearch.status === "LoadingFirstPage" ? <div className="grid min-h-20 place-items-center"><Spinner size="md" /></div> : null}
             {messageSearch.status === "CanLoadMore" ? <button type="button" onClick={() => messageSearch.loadMore(20)} className="w-full rounded-full border border-ink bg-paper-strong px-3 py-2 type-caption font-black">{label(locale, "Učitaj još rezultata", "Load more results")}</button> : null}
           </div> : <p className="mt-2 px-2 type-caption font-bold text-muted">{label(locale, "Unesi najmanje dva znaka.", "Enter at least two characters.")}</p>}

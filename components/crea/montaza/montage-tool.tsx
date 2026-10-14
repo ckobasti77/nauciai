@@ -4,6 +4,7 @@ import { useConvex, useMutation } from "convex/react";
 import { Film, FilePlus2, FolderOpen, Music, Plus, Redo2, Save, Scissors, Type, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { AudioPanel } from "@/components/crea/montaza/audio-panel";
 import { ClipInspector, OverlayInspector, pipRect, TransitionControls, type ReverseState } from "@/components/crea/montaza/clip-inspector";
 import { listDrafts, newDraftId, newFileId, saveDraft, type MontageDraft } from "@/components/crea/montaza/draft-store";
@@ -705,10 +706,7 @@ export default function MontageTool({ tool, locale, caps, canSave, projectId, so
               </span>
             </div>
             {timeline.main.length === 0 ? (
-              <div className="surface-inset border border-dashed border-line bg-paper p-4">
-                <p className="type-h4 text-ink">{T.emptyTitle[locale]}</p>
-                <p className="mt-1 type-body-sm font-semibold text-muted">{T.emptyBody[locale]}</p>
-              </div>
+              <IgraState compact variant="prazno" art="lik.kadar.misli" locale={locale} title={T.emptyTitle[locale]} body={T.emptyBody[locale]} />
             ) : (
               <MontageTimeline locale={locale} timeline={timeline} onChange={commit} selection={selection} onSelect={select} player={player} library={library} />
             )}

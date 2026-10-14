@@ -24,6 +24,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import {
@@ -89,7 +90,7 @@ export function CreaAlbumView({ locale }: { locale: Locale }) {
   const album = useQuery(api.creaGame.myAlbum, {});
   const claim = useMutation(api.creaGame.claimAlbumReward);
   if (album === undefined) {
-    return <p className="type-body font-bold text-muted">{locale === "sr" ? "Učitavam album…" : "Loading the album…"}</p>;
+    return <IgraState compact variant="ucitavanje" locale={locale} title={locale === "sr" ? "Učitavam album…" : "Loading the album…"} />;
   }
   return <CreaAlbumBook locale={locale} album={album} onClaim={(pageId) => claim({ pageId })} />;
 }

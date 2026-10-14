@@ -6,6 +6,7 @@ import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { AudioLines, Expand, ImagePlus, LocateFixed, Minus, Plus, StickyNote, Trash2, Wand2, X } from "lucide-react";
 import { useRef, useState, type ComponentType, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { useSaveLocalResult } from "@/components/crea/use-save-local-result";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
@@ -77,7 +78,7 @@ function WorkPicker({ locale, onPick, onClose }: { locale: Locale; onPick: (jobI
           <Spinner size="md" className="text-muted" />
         </div>
       ) : done.length === 0 ? (
-        <p className="mt-2 text-xs font-bold text-muted">{T.pickEmpty[locale]}</p>
+        <IgraState compact variant="prazno" art="prazno.radovi" locale={locale} title={T.pickEmpty[locale]} />
       ) : (
         <ul className="mt-2 grid max-h-72 grid-cols-3 gap-2 overflow-y-auto">
           {done.map((job) => (

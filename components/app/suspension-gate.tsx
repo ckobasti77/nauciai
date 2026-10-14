@@ -3,12 +3,13 @@
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { CircleAlert, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { api } from "@/convex/_generated/api";
 import { t, type Locale } from "@/lib/i18n";
+import { IgraArt } from "@/components/igra/igra-art";
 import { Spinner } from "@/components/ui/spinner";
 
 export type ViewerSuspension = NonNullable<
@@ -64,7 +65,7 @@ export function SuspensionGate({
   return (
     <main className="grid min-h-screen place-items-center bg-paper p-4 text-ink">
       <section aria-labelledby="suspension-title" className="w-full max-w-2xl rounded-[16px] border-2 border-ink bg-paper-strong p-6 shadow-[7px_7px_0_0_var(--yellow)] sm:p-8">
-        <span className="grid size-12 place-items-center rounded-full border-2 border-ink bg-yellow"><CircleAlert className="size-6" /></span>
+        <IgraArt id="prazno.zakljucano" size="md" decorative />
         <p className="mt-5 type-eyebrow text-red-700">{t(locale, "Nalog je suspendovan", "Account suspended")}</p>
         {/* Server-rendered without a fixed timeZone, so the SSR string can differ from the viewer's. */}
         <h1 suppressHydrationWarning id="suspension-title" className="mt-2 type-h1">{formatEnd(locale, activeSuspension.endsAt, activeSuspension.permanent)}</h1>

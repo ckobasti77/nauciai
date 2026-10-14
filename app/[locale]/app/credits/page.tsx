@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { CreditsPage } from "@/components/app/credits-page";
 import { AccountHead } from "@/components/igra/account/account-head";
-import { Panel } from "@/components/ui/primitives";
 import { appPageMetadata } from "@/lib/app-metadata";
 import { normalizeLocale } from "@/lib/i18n";
 
@@ -33,13 +33,9 @@ export default async function CreditsRoute({
               : "Credits power Crea. Bought once, valid for 12 months."
           }
         />
-        <Panel className="p-6">
-          <p className="type-body type-measure font-bold text-muted">
-            {locale === "sr"
+        <IgraState variant="offline" locale={locale} title={locale === "sr" ? "Baza nije povezana" : "Database not connected"} body={locale === "sr"
               ? "Backend nije povezan na ovoj instalaciji, pa balans i paketi nisu dostupni."
-              : "The backend is not connected on this installation, so the balance and packs are unavailable."}
-          </p>
-        </Panel>
+              : "The backend is not connected on this installation, so the balance and packs are unavailable."} />
       </div>
     );
   }

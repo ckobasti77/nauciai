@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Copy, KeyRound, Plug, Plus, Trash2, TriangleAlert } f
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
+import { IgraArt } from "@/components/igra/igra-art";
 import { ApiKeysEmpty } from "@/components/igra/account/account-empty";
 import { AccountHead } from "@/components/igra/account/account-head";
 import { Badge } from "@/components/ui/badge";
@@ -481,7 +482,7 @@ export function ApiKeysPage({ locale }: { locale: Locale }) {
 
         {apps.length === 0 ? (
           <div className="p-5">
-            <EmptyState icon={Plug} title={t.connectionsEmptyTitle} body={t.connectionsEmptyBody} />
+            <EmptyState icon={Plug} art={<IgraArt id="prazno.zakljucano" size="lg" decorative />} title={t.connectionsEmptyTitle} body={t.connectionsEmptyBody} />
           </div>
         ) : (
           <ul className="divide-y divide-line">

@@ -20,6 +20,7 @@ import Link from "next/link";
 
 import { VoteScore } from "@/components/app/community-gamification";
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
+import { IgraArt } from "@/components/igra/igra-art";
 import { AuthorRankChip } from "@/components/igra/community/author-rank-chip";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -191,6 +192,7 @@ export function CommentsSection({
       ) : comments.length === 0 ? (
         <EmptyState
           icon={MessageCircleReply}
+          art={<IgraArt id="prazno.objave" size="lg" decorative />}
           title={locale === "sr" ? "Još nema nijednog komentara" : "No comments yet"}
           body={
             locale === "sr"

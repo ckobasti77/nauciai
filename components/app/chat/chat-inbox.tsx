@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Component, type ReactNode, useEffect, useRef, useState } from "react";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { NewConversationDialog } from "@/components/app/chat/chat-dialogs";
 import {
   Avatar,
@@ -246,10 +247,12 @@ class GlobalSearchErrorBoundary extends Component<{ children: ReactNode; locale:
   render() {
     if (!this.state.hasError) return this.props.children;
     return (
-      <div role="alert" className="rounded-[16px] border-2 border-red-400 bg-red-50 p-4 text-center">
-        <p className="text-xs font-black text-red-800">{label(this.props.locale, "Pretraga trenutno nije dostupna.", "Search is temporarily unavailable.")}</p>
-        <button type="button" onClick={() => this.setState({ hasError: false })} className="mt-3 rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-black">{label(this.props.locale, "Pokušaj ponovo", "Try again")}</button>
-      </div>
+      <IgraState
+        variant="greska"
+        locale={this.props.locale}
+        title={label(this.props.locale, "Pretraga trenutno nije dostupna", "Search is temporarily unavailable")}
+        onRetry={() => this.setState({ hasError: false })}
+      />
     );
   }
 }

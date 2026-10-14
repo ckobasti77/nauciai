@@ -13,16 +13,17 @@ import {
   Link2,
   MessageCircle,
   UserPlus,
-  Users,
   PlaySquare,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { openChatDock } from "@/components/app/chat/chat-dock";
 import { useMemberIgra } from "@/components/app/member-profile-igra";
 import { CreaReportCardPanel } from "@/components/crea/game/crea-report-card-panel";
+import { IgraArt } from "@/components/igra/igra-art";
 import { useIgraProgress } from "@/components/igra/igra-progress-context";
 import { BannerPicker } from "@/components/igra/profile/banner-picker";
 import { PlayerStats } from "@/components/igra/profile/player-stats";
@@ -35,7 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Textarea } from "@/components/ui/field";
-import { cn } from "@/components/ui/primitives";
+import { LinkButton, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import type { IgraBannerKey } from "@/lib/igra-banners";
 import { IGRA_PROFILE_COPY } from "@/lib/igra-copy";
@@ -143,11 +144,15 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
 
   if (profile === undefined) return <div className="grid min-h-[60vh] place-items-center"><Spinner size="xl" className="text-ink" label={t(locale, "Učitavanje", "Loading")} /></div>;
   if (profile === null) return (
-    <div className="surface-card mx-auto max-w-2xl border-2 border-ink bg-paper-strong p-8 text-center shadow-[6px_6px_0_0_var(--yellow)]">
-      <Users className="mx-auto size-10 text-ink" />
-      <h1 className="mt-4 type-h1 text-ink">{t(locale, "Profil nije pronađen", "Profile not found")}</h1>
-      <p className="mt-2 font-bold text-muted">{t(locale, "Korisnik je uklonjen, spojen ili još nema korisničko ime.", "This member was removed, merged, or does not have a username yet.")}</p>
-      <Link href={withLocale(locale, "/app/community/members")} className="mt-5 inline-flex rounded-full border-2 border-ink bg-yellow px-5 py-3 text-sm font-black">{t(locale, "Nazad na članove", "Back to members")}</Link>
+    <div className="mx-auto max-w-2xl">
+      <IgraState
+        page
+        variant="404"
+        locale={locale}
+        title={t(locale, "Profil nije pronađen", "Profile not found")}
+        body={t(locale, "Korisnik je uklonjen, spojen ili još nema korisničko ime.", "This member was removed, merged, or does not have a username yet.")}
+        action={<LinkButton href={withLocale(locale, "/app/community/members")} tone="yellow">{t(locale, "Nazad na članove", "Back to members")}</LinkButton>}
+      />
     </div>
   );
 
@@ -346,7 +351,7 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
           </article>
         ))}
         {commonStudyCourses.status === "CanLoadMore" || commonStudyCourses.status === "LoadingMore" ? <Button size="sm" variant="secondary" loading={commonStudyCourses.status === "LoadingMore"} onClick={() => commonStudyCourses.loadMore(12)} className="w-full">{commonStudyCourses.status === "LoadingMore" ? t(locale, "Učitavanje…", "Loading…") : t(locale, "Učitaj još", "Load more")}</Button> : null}
-        {!commonStudyCourses.results.length && commonStudyCourses.status === "Exhausted" ? <EmptyState icon={BookOpen} title={t(locale, "Nemate zajednički aktivan kurs.", "You do not share an active course.")} body={t(locale, "Kad oboje krenete isti kurs, ovde se pojavi dugme za poziv na zajedničko učenje.", "Once you both start the same course, an invite button appears here.")} /> : null}
+        {!commonStudyCourses.results.length && commonStudyCourses.status === "Exhausted" ? <EmptyState icon={BookOpen} art={<IgraArt id="prazno.par" size="lg" decorative />} title={t(locale, "Nemate zajednički aktivan kurs.", "You do not share an active course.")} body={t(locale, "Kad oboje krenete isti kurs, ovde se pojavi dugme za poziv na zajedničko učenje.", "Once you both start the same course, an invite button appears here.")} /> : null}
       </Dialog>
       <Dialog
         open={reportOpen}

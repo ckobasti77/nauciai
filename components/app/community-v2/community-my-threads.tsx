@@ -287,6 +287,7 @@ function MyThreadsView({
               <EmptyCommunityState
                 locale={locale}
                 icon={activeItem.icon}
+                art="prazno.objave"
                 title={
                   viewState.view === "drafts"
                     ? locale === "sr"

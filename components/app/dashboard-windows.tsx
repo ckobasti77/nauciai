@@ -104,6 +104,18 @@ function WindowRowView({ row }: { row: WindowRow }) {
   return <div className={className}>{inner}</div>;
 }
 
+/** Slika praznog prozora po zoni (K23); admin prozori su „sve čisto“, pa slavi Robi. */
+const DASHBOARD_EMPTY_ART: Record<DashboardZoneId, IgraArtId> = {
+  classroom: "prazno.kursevi",
+  messages: "prazno.poruke",
+  community: "prazno.objave",
+  notifications: "prazno.obavestenja",
+  studio: "prazno.radovi",
+  study: "prazno.par",
+  adminContent: "lik.robi.slavi",
+  adminPeople: "lik.robi.slavi",
+};
+
 export function DashboardWindow({
   zone,
   eyebrow,
@@ -183,7 +195,7 @@ export function DashboardWindow({
           // ima tačno jedno dugme u podnožju, a ono je kontekstualno.
           // `cn` je obično spajanje, ne tailwind-merge — zato ovde ide samo `h-full`,
           // klasa koja se ni sa čim u primitivu ne sudara.
-          <EmptyState icon={Icon} title={emptyTitle} body={emptyBody} className="h-full" />
+          <EmptyState icon={Icon} art={<IgraArt id={DASHBOARD_EMPTY_ART[zone]} size="lg" decorative />} title={emptyTitle} body={emptyBody} className="h-full" />
         )}
       </div>
       <div className="border-t-2 border-line p-4 sm:p-6">

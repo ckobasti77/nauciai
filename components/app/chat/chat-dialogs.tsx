@@ -12,6 +12,7 @@ import {
   creationError,
   label,
 } from "@/components/app/chat/chat-shared";
+import { IgraState } from "@/components/igra/igra-state";
 import { useModalFocus } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
@@ -103,7 +104,7 @@ export function NewConversationDialog({ locale, onClose }: { locale: Locale; onC
               </button>;
             })}
             {members.status === "LoadingFirstPage" ? <div className="grid min-h-36 place-items-center"><Spinner size="lg" /></div> : null}
-            {!availableMembers.length && members.status !== "LoadingFirstPage" ? <p className="p-8 text-center text-sm font-black text-muted">{label(locale, "Nema dostupnih članova.", "No available members.")}</p> : null}
+            {!availableMembers.length && members.status !== "LoadingFirstPage" ? <IgraState compact variant="prazno" art="prazno.par" locale={locale} title={label(locale, "Nema dostupnih članova.", "No available members.")} /> : null}
             {members.status === "CanLoadMore" ? <button type="button" onClick={() => members.loadMore(30)} className="w-full rounded-full border-2 border-ink bg-paper-strong px-4 py-2.5 text-xs font-black">{label(locale, "Učitaj još", "Load more")}</button> : null}
           </div>
           {mode === "group" ? <form onSubmit={submitGroup} className="border-t-2 border-ink p-4"><button type="submit" disabled={submitting || groupName.trim().length < 2 || selectedIds.length < 1} className="flex h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black disabled:opacity-40">{submitting ? <Spinner /> : <Users className="size-4" />}{label(locale, "Kreiraj grupu", "Create group")}</button></form> : null}

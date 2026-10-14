@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { StudioPage } from "@/components/app/studio-page";
-import { Panel } from "@/components/ui/primitives";
 import { normalizeLocale, t, withLocale } from "@/lib/i18n";
 
 export async function generateMetadata({
@@ -27,15 +27,11 @@ export default async function StandaloneStudioDetailRoute({
 
   if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
     return (
-      <Panel className="p-6">
-        <p className="type-body type-measure font-bold text-muted">
-          {t(
+      <IgraState variant="offline" locale={locale} title={t(locale, "Baza nije povezana", "Database not connected")} body={t(
             locale,
             "Backend nije povezan na ovoj instalaciji, pa Crea ne može da prikaže generaciju.",
             "The backend is not connected on this installation, so Crea cannot show the generation.",
-          )}
-        </p>
-      </Panel>
+          )} />
     );
   }
 

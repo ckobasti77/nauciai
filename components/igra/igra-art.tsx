@@ -2,9 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element -- IGRA slike su gotovi AVIF fajlovi iz public/brand/igra sa dimenzijama iz manifesta; optimizator next/image im ne treba. */
 
+import dynamic from "next/dynamic";
 import { useState, type ReactNode } from "react";
 
-import { IgraFallbackIcon } from "@/components/igra/igra-fallback-icons";
 import { cn } from "@/components/ui/primitives";
 import {
   igraArt,
@@ -18,6 +18,10 @@ import {
   type IgraArtSize,
 } from "@/lib/igra-art";
 import type { Locale } from "@/lib/i18n";
+
+// Fallback ikone se crtaju samo kad slike nema (ne stoji u manifestu ili je fajl 404), pa mapa od
+// ~40 lucide ikona ne ide u početni JS svake rute koja crta sliku (K23, predlog iz K16).
+const IgraFallbackIcon = dynamic(() => import("@/components/igra/igra-fallback-icons").then((m) => m.IgraFallbackIcon));
 
 export type IgraArtProps = {
   id: IgraArtId;

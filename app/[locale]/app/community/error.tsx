@@ -1,10 +1,6 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
-import { useParams } from "next/navigation";
-import { useEffect } from "react";
-
-import { normalizeLocale } from "@/lib/i18n";
+import { IgraErrorState } from "@/components/igra/igra-error-state";
 
 export default function CommunityError({
   error,
@@ -13,39 +9,12 @@ export default function CommunityError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const params = useParams<{ locale?: string }>();
-  const locale = normalizeLocale(params?.locale);
-
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
-
   return (
-    <section
-      className="grid min-h-80 place-items-center rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_var(--shadow-hard-12)]"
-      role="alert"
-    >
-      <div className="max-w-md">
-        <p className="font-display type-display-sm text-ink">
-          {locale === "sr" ? "Studio je nakratko zastao." : "The studio paused for a moment."}
-        </p>
-        <h2 className="mt-2 type-h2 text-ink">
-          {locale === "sr" ? "Sadržaj zajednice nije učitan" : "Community content did not load"}
-        </h2>
-        <p className="mt-3 type-body-sm font-semibold text-muted">
-          {locale === "sr"
-            ? "Pokušaj ponovo. Tvoji filteri i trenutna stranica će ostati sačuvani."
-            : "Try again. Your filters and current page will stay in place."}
-        </p>
-        <button
-          type="button"
-          onClick={reset}
-          className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
-        >
-          <RotateCcw className="size-4" aria-hidden="true" />
-          {locale === "sr" ? "Učitaj ponovo" : "Try again"}
-        </button>
-      </div>
-    </section>
+    <IgraErrorState
+      error={error}
+      reset={reset}
+      title={{ sr: "Zajednica nije učitana", en: "Community did not load" }}
+      body={{ sr: "To nije do tebe. Tvoji filteri i trenutna stranica ostaju sačuvani, pokušaj ponovo.", en: "That is not on you. Your filters and current page stay in place, please try again." }}
+    />
   );
 }

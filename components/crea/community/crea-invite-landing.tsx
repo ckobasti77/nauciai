@@ -4,6 +4,8 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { UsersRound } from "lucide-react";
 import { useState } from "react";
 
+import { IgraArt } from "@/components/igra/igra-art";
+import { IgraState } from "@/components/igra/igra-state";
 import { CreaLogo } from "@/components/crea/crea-logo";
 import { Button, LinkButton, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
@@ -29,14 +31,15 @@ export function CreaInviteLanding({ locale, code }: { locale: Locale; code: stri
 
   if (invite === undefined || isLoading) {
     return (
-      <p role="status" className="mx-auto max-w-2xl type-body font-bold text-muted">
-        {CREA_COMMUNITY_NAV.loading[locale]}
-      </p>
+      <IgraState compact variant="ucitavanje" locale={locale} className="mx-auto max-w-2xl" title={CREA_COMMUNITY_NAV.loading[locale]} />
     );
   }
   if (invite === null || invite.inviter === null) {
     return (
       <section className="surface-card mx-auto max-w-2xl border-2 border-ink bg-paper-strong p-6 text-center text-ink shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
+        <div className="mb-3 flex justify-center">
+          <IgraArt id="prazno.404" size="lg" decorative />
+        </div>
         <p className="type-h3">{CREA_INVITE_COPY.notFound[locale]}</p>
         <LinkButton href={withLocale(locale, "/studio")} tone="yellow" className="mt-4">
           Crea

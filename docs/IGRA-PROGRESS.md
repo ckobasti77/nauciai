@@ -1437,3 +1437,52 @@ Jovan ručno: uključi `crea_public_gallery` na DEV-u i otvori `/crea/galerija` 
 **BLOKADA (samo provera, ne kod):** prave strane (`/app/admin/*`, `/app/community/moderation`, Crea pregled poslova) traže prijavu kao admin/moderator kroz auth tok koji se ne dira, a Playwright MCP radi bez sesije (isto kao K06–K21). Komponente su proverene u izlogu; povezivanje sa stranama typecheck-om i testovima nad izvorom.
 
 **Za Jovana ujutru:** kao admin otvori `/app/community/moderation` (glava „Red misija", „N na čekanju" = broj u sidebaru, redni brojevi 1…8, „Učitaj još" nastavlja brojanje), `/app/admin/content` (izaberi spremnu lekciju → pečat „Spremno · n/n"; nespremna → žuta pilula), `/app/admin/studio` (nalepnice u zaglavlju i uz Potrošnju, veza ka Analitici), `/app/admin/chat` (nalepnica, Robi kad nije izabrana prijava, statusi „Otvoreno/U pregledu…") i `/app/admin/settings`. Crea pregled poslova (Crea za osoblje) sa filterom bez rezultata → ilustracija. Odluči: da li ipak želiš sparkline-ove i na Crea adminu (ODLUKA 1). Uporedi sa `K22-admin-red-misija-1440-svetla.png` i `K22-admin-zaglavlja-1440-tamna.png`.
+
+## K23 — Prazna stanja, greške, učitavanje   (2026-10-14 12:15)
+**Fajlovi:**
+- novi: `components/igra/igra-state.tsx` (`IgraState`), `components/igra/igra-error-state.tsx` (`IgraErrorState`), `components/igra/igra-offline-notice.tsx` + `igra-offline-bar.tsx`, `components/igra/use-online.ts`, `lib/igra-state.ts` + `lib/igra-state.test.ts`, `app/[locale]/app/not-found.tsx`, `app/[locale]/app/[...notFound]/page.tsx`, `app/[locale]/studio/(shell)/app/error.tsx`, `components/igra/izlog/izlog-stanja.tsx`, `docs/igra/snimci/K23-stanja-*.png` (4)
+- izmenjeni: `lib/igra-copy.ts` (`IGRA_STATE_COPY`), `components/igra/izlog/registry.ts`, `lib/igra-izlog.test.ts`, `components/igra/igra-art.tsx` (fallback ikone lenjo), `components/app/app-shell.tsx`, tri `error.tsx` (`app`, `community`, `messages`), mesta iz spiska ispod
+
+**Šta je urađeno:** Jedna zajednička komponenta `IgraState` (nad postojećim `EmptyState`) ima sedam varijanti: prazno, greška, 404, učitavanje, offline, zaključano, uskoro. Slika, tekst i ARIA uloga po varijanti stoje u `lib/igra-state.ts` + `IGRA_STATE_COPY` (sr/en, kratko, bez krivice korisnika). Uz `page` je ceo ekran, uz `compact` stoji unutar liste/dijaloga bez okvira. Granice greške (`/app`, zajednica, poruke, Crea `/app`) idu preko `IgraErrorState`: bez mreže (`navigator.onLine`) prikazuje „Nema interneta" umesto „greška". Unutar ljuske je ilustrovan 404 (`app/not-found.tsx` + hvatač `[...notFound]` pod `/app`; javni 404 netaknut), a tiha traka „Nema interneta" stoji na vrhu sadržaja ljuske samo dok veze nema.
+
+**Spisak zamenjenih mesta:**
+- *Granice greške i 404:* `app/error.tsx`, `community/error.tsx`, `messages/error.tsx`, novi `studio/(shell)/app/error.tsx`, novi `app/not-found.tsx` + `[...notFound]`.
+- *Offline („baza nije povezana"):* `/app/credits`, `/app/studio`, `/app/studio/m/[jobId]`, `/crea/app`, `/crea/app/m/[jobId]`, `/crea/krediti`; traka bez veze u ljusci.
+- *Prazno / 404 / zaključano / uskoro (cela površina):* profil člana „nije pronađen", tema „nije dostupna", editor „nije dostupan", razgovor „nije dostupan", pretraga poruka, novi razgovor „nema članova", slike grupe, odlazni pozivi, pretraga četa (greška), lekcije bez sadržaja (slika/video/tekst), materijali, kurs bez lekcija (tabla), Crea katalog alata i način rada bez modela, nalog suspendovan (slika umesto ikone).
+- *Dodata ilustracija na postojeći `EmptyState`:* smerovi, kursevi, filter kurseva (učionica), komentari, povezane aplikacije (API ključevi), zajednički kurs (profil), „moje teme", šest prozora table (`DASHBOARD_EMPTY_ART`), Crea sačuvani likovi.
+- *Učitavanje (gol tekst → `compact` `ucitavanje`):* Crea album, galerija (3 mesta), javni rad, poziv, izbor medija (montaža, zvuk); prazna stanja montaže, izbora iz table, pozivnica 404.
+
+**Površine:** gotovo: sve gore. Nije rađeno (ODLUKE 1–5): sidebar lista, admin tabele, inline poruke, `loading.tsx`, Crea istorija.
+
+**ODLUKE:**
+1. **`loading.tsx` ostaju skeleti** (`DashboardHomeSkeleton`, `ClassroomHubSkeleton`, poruke): K08/K09 su ih napravili da layout ne skače; ilustracija bi taj skok vratila. Varijanta `ucitavanje` postoji za gole „Učitavam…" redove, ne za skelete.
+2. **Sidebar (`app-sidebar.tsx`) ne dobija slike.** Kratke poruke u uskoj šini (smerovi, lekcije, „zaključano") bi ilustracijom pojele visinu, a fajl je na svakoj ruti (`/app` budžet).
+3. **Admin ekrani i inline statusi** (admin-inline-actions, lesson-steps-editor, `studio-admin-page` „Katalog je prazan", izbori u Crea alatima, „Nije uspelo - krediti su vraćeni", značke „istekao") nisu dirani: guste tabele i jednolinijske poruke nisu „prazno stanje" (plan 6.9: tabele ostaju guste). Crea istorija (`crea-history.tsx`) je jedna rečenica u podnožju, ostaje.
+4. **`dashboard-content.tsx` učitava `IgraState` kroz `next/dynamic`** (test iz K08: fajl na svakoj ruti ne uvozi IGRA kod).
+5. **Uskoro/zaključano** u lekcijama koristi `variant="uskoro"` (poklon) i za „video nije dodat" jer je to stanje koje će se rešiti samo.
+6. **Stringovi u `IGRA_STATE_COPY`** (ne u `lib/i18n.ts`), po ODLUCI 12 iz K01.
+7. **Fallback ikone `IgraArt` su sada lenjo učitane** (`next/dynamic`, predlog iz K16): bez toga je `/app` bio 295,2 KB (budžet 294); sada 291,4. Sve rute su pale za 2–4 KB. Fallback se i dalje crta (SSR), samo se mapa od ~40 lucide ikona ne šalje unapred.
+8. **Traka bez veze** čeka pregledač (`navigator.onLine`) jer Convex ne javlja prekid; telo trake je `next/dynamic` da ne ide u početni JS ljuske.
+9. **Poruke u grešci**: zadržani su specifični naslovi svake granice („Pregled nije učitan" itd.), sa novim rečenicama „To nije do tebe…".
+
+**Novi paketi:** nema.
+
+**Testovi:** `lib/igra-state.test.ts` (9): svaka varijanta ima spremnu sliku iz manifesta, sr/en tekst bez uzvičnika i krivice, dugme samo na greška/404/offline, ARIA uloge, offline umesto greške bez mreže, granice greške koriste `IgraErrorState` bez ručnog okvira, 404 u ljusci + javni 404 netaknut, traka samo bez veze (lenja), bez GSAP/three. `lib/igra-izlog.test.ts` dobio deo „stanja".
+
+**Slike:** `prazno.greska`, `prazno.404`, `prazno.ucitavanje`, `prazno.offline`, `prazno.zakljucano`, `prazno.uskoro`, `prazno.kursevi`, `prazno.objave`, `prazno.obavestenja`, `prazno.poruke`, `prazno.radovi`, `prazno.par`, `prazno.pretraga`, `lik.robi.misli`, `lik.robi.slavi`, `lik.sova.misli`, `lik.kadar.misli`, `lik.piksi.misli`. Nove slike nisu tražene.
+
+**Rezultat provere:** codegen: nije potreban (`convex/` nije diran) / typecheck: prošlo / lint: prošlo (0 grešaka, istih 26 upozorenja) / test: prošlo (317 fajlova, 3.602 testa) / check:frames, check:corners, check:white, check:igra: prošlo / build + check:bundle: prošlo (`/app` 291,4/294 — pre lenjih fallback ikona 295,2; Crea `/app` 495/512; `/app/studio` 556/595).
+- Izlog (`/igra-izlog?deo=stanja`), `next dev --webpack` na 3123: 1440 × 900 svetla i tamna, 390 × 844 svetla: sve varijante, `compact` i `page`; 0 grešaka u konzoli, bez vodoravnog skrola. Dev server ugašen, Playwright `page-*.yml`/`console-*.log` obrisani.
+
+**BLOKADA (samo provera, ne kod):** prave strane iza prijave (granice greške, `/app/xyz` 404, profil bez korisnika, razgovor koji ne postoji) Playwright MCP bez sesije ne vidi (kao K06–K22), a granicu greške ne mogu da izazovem bez menjanja koda. Komponente su proverene u izlogu, povezivanje typecheck-om i testovima nad izvorom. Tamna tema na 390 i traka „Nema interneta" nisu snimljene (traka se pojavljuje samo bez veze).
+
+**Za Jovana ujutru:** otvori `/app/nepostoji` (ilustrovan 404 unutar ljuske, „Nazad na tablu") i `/en/app/nepostoji`; u DevTools isključi mrežu (Offline) na bilo kojoj `/app` strani → traka „Nema interneta"; profil `/app/members/ne-postoji`; temu `/app/community/<loš id>`; `/app/classroom` filter bez kurseva. Uporedi sa `K23-stanja-1440-svetla.png` i `K23-stanja-1440-tamna.png`. Odluči: da li želiš ilustracije i u sidebar listi (ODLUKA 2) i da li admin „Katalog je prazan" (ODLUKA 3) treba da dobije Bajta.
+
+**Spisak zamenjenih mesta po fajlovima (K23, potpun):**
+- Granice greške i 404: `app/[locale]/app/error.tsx`, `app/[locale]/app/community/error.tsx`, `app/[locale]/app/messages/error.tsx` (→ `IgraErrorState`); novi `app/[locale]/studio/(shell)/app/error.tsx`, `app/[locale]/app/not-found.tsx`, `app/[locale]/app/[...notFound]/page.tsx`.
+- „Baza nije povezana" (→ `IgraState offline`): `app/[locale]/app/credits/page.tsx`, `app/[locale]/app/studio/page.tsx`, `app/[locale]/app/studio/m/[jobId]/page.tsx`, `app/[locale]/studio/(shell)/app/page.tsx`, `.../app/m/[jobId]/page.tsx`, `.../krediti/page.tsx`.
+- Ljuska: `components/app/app-shell.tsx` (traka bez veze).
+- Prazno/404/zaključano/uskoro: `components/app/member-profile.tsx` (profil nije pronađen), `components/app/community-thread-detail.tsx` (editor nedostupan, tema nedostupna), `components/app/chat/chat-thread.tsx` (razgovor nedostupan, pretraga poruka), `components/app/chat/chat-dialogs.tsx` (nema članova), `components/app/chat/chat-group-details.tsx` (nema slika), `components/app/chat/chat-inbox.tsx` (pretraga u grešci), `components/app/chat/study-hub.tsx` (nema poziva), `components/app/course-player.tsx` (slika/video/tekst/materijali), `components/app/dashboard-content.tsx` (kurs bez lekcija), `components/app/studio-page.tsx` (nema alata / nema modela), `components/app/suspension-gate.tsx` (slika umesto ikone).
+- Ilustracija dodata postojećem `EmptyState`: `components/app/classroom-hub.tsx` (3), `components/app/community-comments.tsx`, `components/app/api-keys-page.tsx`, `components/app/community-v2/community-my-threads.tsx`, `components/app/dashboard-windows.tsx` (6 zona), `components/crea/tools/elements-tool.tsx`, `components/app/member-profile.tsx` (zajednički kurs).
+- Učitavanje i prazno u Crei (→ `compact`): `components/crea/game/crea-album-view.tsx`, `components/crea/community/crea-gallery.tsx` (3), `crea-public-work.tsx`, `crea-invite-landing.tsx` (+ ilustracija 404), `components/crea/montaza/media-picker.tsx`, `montage-tool.tsx`, `components/crea/zvuk/sound-input.tsx`, `components/crea/board/crea-board.tsx`.
+- Provera na kraju koraka: nijedan `node` proces ne sluša ni na jednom portu (provereno po PID-u); preostali `node` procesi su MCP/Adobe/Playwright pomoćnici.

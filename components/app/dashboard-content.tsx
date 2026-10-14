@@ -57,6 +57,8 @@ import type { Id } from "@/convex/_generated/dataModel";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { dictionary, localized, t as tr, type Locale, type LocalizedText, withLocale } from "@/lib/i18n";
 
+// Prazno stanje se učitava tek kad kurs nema lekcija: ovaj fajl je na svakoj ruti aplikacije i ne uvozi IGRA kod.
+const IgraState = dynamic(() => import("@/components/igra/igra-state").then((m) => m.IgraState));
 const EditCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.EditCourseAction), { ssr: false });
 
 export type DashboardLesson = {
@@ -1296,7 +1298,7 @@ export function DashboardContent({
               </div>
             </details>
           ))}
-          {!lessons ? <div className="rounded-[16px] border-2 border-dashed border-line bg-paper p-8 text-center text-sm font-black text-muted">{tr(locale, "Kurs još nema lekcije.", "This course has no lessons yet.")}</div> : null}
+          {!lessons ? <IgraState variant="prazno" art="prazno.kursevi" locale={locale} title={tr(locale, "Kurs još nema lekcije.", "This course has no lessons yet.")} body={tr(locale, "Lekcije stižu čim ih autor objavi.", "Lessons arrive as soon as the author publishes them.")} /> : null}
           {surfaceIsAdmin ? <Link href={withLocale(locale, "/app/admin")} className="grid min-h-28 place-items-center rounded-[16px] border-2 border-dashed border-ink bg-paper text-center transition hover:bg-yellow/20"><span className="font-black">+ {tr(locale, "Dodaj novu lekciju", "Add a new lesson")}</span></Link> : null}
         </div>
       </Panel>

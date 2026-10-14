@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { CreditsPage } from "@/components/app/credits-page";
-import { Panel, SectionHeader } from "@/components/ui/primitives";
+import { SectionHeader } from "@/components/ui/primitives";
 import { normalizeLocale, t } from "@/lib/i18n";
 
 export async function generateMetadata({
@@ -40,15 +41,11 @@ export default async function StandaloneCreditsRoute({
             "A credit is a point that pays for every generation in Crea.",
           )}
         />
-        <Panel className="p-6">
-          <p className="type-body type-measure font-bold text-muted">
-            {t(
+        <IgraState variant="offline" locale={locale} title={t(locale, "Baza nije povezana", "Database not connected")} body={t(
               locale,
               "Backend nije povezan na ovoj instalaciji, pa krediti nisu dostupni.",
               "The backend is not connected on this installation, so credits are unavailable.",
-            )}
-          </p>
-        </Panel>
+            )} />
       </div>
     );
   }

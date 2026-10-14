@@ -26,6 +26,7 @@ import {
 } from "@/components/app/classroom-hub-skeleton";
 import { DashboardCourseCard } from "@/components/app/dashboard-course-card";
 import { coursesFromLive, isLiveCatalogEmpty, type LiveNavigationResult } from "@/components/app/dashboard-live";
+import { IgraArt } from "@/components/igra/igra-art";
 import { IgraLik } from "@/components/igra/igra-lik";
 import { ProgressRing } from "@/components/igra/progress-ring";
 import { SectionWave } from "@/components/marketing/section-wave";
@@ -297,6 +298,7 @@ export function ClassroomHubView({
             <div className="mt-8">
               <EmptyState
                 icon={Compass}
+                art={<IgraArt id="prazno.uskoro" size="lg" decorative />}
                 title={tr(locale, "Smerovi još nisu napravljeni", "Tracks are not set up yet")}
                 body={tr(
                   locale,
@@ -370,6 +372,7 @@ export function ClassroomHubView({
             <div className="mt-8">
               <EmptyState
                 icon={BookOpen}
+                art={<IgraArt id="prazno.kursevi" size="lg" decorative />}
                 title={tr(locale, "Još nema nijednog kursa", "No courses yet")}
                 body={tr(
                   locale,
@@ -415,6 +418,7 @@ export function ClassroomHubView({
             <div className="mt-8">
               <EmptyState
                 icon={BookOpen}
+                art={<IgraArt id="prazno.pretraga" size="lg" decorative />}
                 title={tr(locale, "Nema kurseva u ovom filteru", "No courses match this filter")}
                 body={tr(
                   locale,

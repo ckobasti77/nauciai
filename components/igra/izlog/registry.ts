@@ -11,6 +11,7 @@ import { IzlogPrimitivi } from "@/components/igra/izlog/izlog-primitivi";
 import { IzlogProfil } from "@/components/igra/izlog/izlog-profil";
 import { IzlogRang } from "@/components/igra/izlog/izlog-rang";
 import { IzlogSlike } from "@/components/igra/izlog/izlog-slike";
+import { IzlogStanja } from "@/components/igra/izlog/izlog-stanja";
 import { IzlogTabla } from "@/components/igra/izlog/izlog-tabla";
 import { IzlogUcionica } from "@/components/igra/izlog/izlog-ucionica";
 import { IzlogZajednica } from "@/components/igra/izlog/izlog-zajednica";
@@ -43,4 +44,5 @@ export const IZLOG_PARTS: readonly IzlogPart[] = [
   { id: "poruke", label: { sr: "Poruke", en: "Messages" }, Part: IzlogPoruke },
   { id: "krediti", label: { sr: "Krediti i podešavanja", en: "Credits and settings" }, Part: IzlogKrediti },
   { id: "admin", label: { sr: "Admin", en: "Admin" }, Part: IzlogAdmin },
+  { id: "stanja", label: { sr: "Stanja", en: "States" }, Part: IzlogStanja },
 ];

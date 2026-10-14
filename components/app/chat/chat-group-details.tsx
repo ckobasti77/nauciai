@@ -12,6 +12,7 @@ import {
   type ConversationMember,
   label,
 } from "@/components/app/chat/chat-shared";
+import { IgraState } from "@/components/igra/igra-state";
 import { useModalFocus } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
@@ -196,7 +197,7 @@ export function ConversationDetailsDialog({
             <div className="flex items-center justify-between gap-3"><div><p className="type-eyebrow-sm text-muted">{label(locale, "Zajednički sadržaj", "Shared content")}</p><h3 id="conversation-media-title" className="type-h4">{label(locale, "Mediji", "Media")}</h3></div><ImagePlus className="size-5 text-blue-mid dark:text-muted" /></div>
             {media.results.length ? <div className="mt-3 grid grid-cols-3 gap-2">{media.results.map((item) => <a key={item.id} href={item.url} target="_blank" rel="noreferrer" className="group relative aspect-square overflow-hidden rounded-[8px] border-2 border-ink bg-paper"><img src={item.url} alt={item.fileName || ""} className="h-full w-full object-cover transition group-hover:scale-[1.03] motion-reduce:transition-none" /><span className="absolute inset-x-0 bottom-0 truncate bg-scrim/75 px-1.5 py-1 font-mono text-[8px] font-bold text-white">{new Intl.DateTimeFormat(locale === "sr" ? "sr-Latn" : "en", { day: "2-digit", month: "2-digit" }).format(new Date(item.createdAt))}</span></a>)}</div> : null}
             {media.status === "LoadingFirstPage" ? <div className="grid min-h-24 place-items-center"><Spinner size="md" /></div> : null}
-            {!media.results.length && media.status === "Exhausted" ? <p className="mt-3 rounded-[12px] border border-dashed border-line bg-paper p-4 text-center text-xs font-bold text-muted">{label(locale, "Još nema nijedne slike. Zakači sliku uz poruku i pojaviće se ovde.", "No images yet. Attach an image to a message and it will show up here.")}</p> : null}
+            {!media.results.length && media.status === "Exhausted" ? <IgraState compact variant="prazno" art="prazno.radovi" locale={locale} className="mt-3" title={label(locale, "Još nema nijedne slike. Zakači sliku uz poruku i pojaviće se ovde.", "No images yet. Attach an image to a message and it will show up here.")} /> : null}
             {media.status === "CanLoadMore" ? <button type="button" onClick={() => media.loadMore(18)} className="mt-3 w-full rounded-full border border-ink bg-paper-strong px-3 py-2 type-caption font-black">{label(locale, "Učitaj još medija", "Load more media")}</button> : null}
           </section>
           {isGroup ? <>

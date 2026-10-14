@@ -4,6 +4,7 @@ import { usePaginatedQuery, useQuery } from "convex/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { CommunityHeader, FOCUS, PILL_TAB, versionsLabel, WorkCard, workPath } from "@/components/crea/community/crea-community-ui";
 import { CreaSeasonBanner } from "@/components/crea/community/crea-season-banner";
 import { IgraArt } from "@/components/igra/igra-art";
@@ -112,9 +113,7 @@ function WorksGrid({ locale, sort, kind }: { locale: Locale; sort: "novo" | "pop
   );
   if (status === "LoadingFirstPage") {
     return (
-      <p role="status" className="type-body font-bold text-muted">
-        {CREA_COMMUNITY_NAV.loading[locale]}
-      </p>
+      <IgraState compact variant="ucitavanje" locale={locale} title={CREA_COMMUNITY_NAV.loading[locale]} />
     );
   }
   if (results.length === 0 && status === "Exhausted") return <GalleryEmpty locale={locale} />;
@@ -171,9 +170,7 @@ function SharedStyles({ locale }: { locale: Locale }) {
   const styles = useQuery(api.creaGallery.listPublicStyles, {});
   if (styles === undefined) {
     return (
-      <p role="status" className="type-body font-bold text-muted">
-        {CREA_COMMUNITY_NAV.loading[locale]}
-      </p>
+      <IgraState compact variant="ucitavanje" locale={locale} title={CREA_COMMUNITY_NAV.loading[locale]} />
     );
   }
   return (
@@ -216,9 +213,7 @@ function MyPosts({ locale }: { locale: Locale }) {
   const posts = useQuery(api.creaGallery.myPublicWorks, {});
   if (posts === undefined) {
     return (
-      <p role="status" className="type-body font-bold text-muted">
-        {CREA_COMMUNITY_NAV.loading[locale]}
-      </p>
+      <IgraState compact variant="ucitavanje" locale={locale} title={CREA_COMMUNITY_NAV.loading[locale]} />
     );
   }
   if (posts.length === 0) {

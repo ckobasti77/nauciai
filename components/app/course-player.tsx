@@ -3,16 +3,18 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { ArrowDown, ArrowUp, CheckCircle2, Download, FileText, LayoutDashboard, PlayCircle, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, Download, FileText, LayoutDashboard, Sparkles, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { InlineContentText } from "@/components/app/inline-content";
 import { InlineRichText, RichTextContent } from "@/components/app/rich-text";
 import { CourseLab, type LessonLabData } from "@/components/app/course-lab";
+import { IgraArt } from "@/components/igra/igra-art";
 import { LessonDone } from "@/components/igra/lesson-done";
 import { LessonStepsBar, useActiveLessonStep } from "@/components/igra/lesson-steps-bar";
 import { useXpGain } from "@/components/igra/motion/use-xp-gain";
@@ -40,7 +42,7 @@ function PartContent({ part, locale }: { part: LessonPart; locale: Locale }) {
     if (part.downloadUrl) {
       return <Image src={part.downloadUrl} alt={localized(part.title, locale)} width={1600} height={900} unoptimized className="mt-4 h-auto w-full surface-media border-2 border-ink object-cover" />;
     }
-    return <div className="mt-4 grid aspect-video place-items-center surface-media border-2 border-dashed border-ink bg-paper p-6 text-center text-sm font-black text-muted">{locale === "sr" ? "Slika za ovaj deo lekcije još nije dodata." : "The image for this part of the lesson has not been added yet."}</div>;
+    return <IgraState compact variant="uskoro" locale={locale} className="mt-4" title={locale === "sr" ? "Slika za ovaj deo lekcije još nije dodata." : "The image for this part of the lesson has not been added yet."} />;
   }
 
   if (part.kind === "video") {
@@ -58,14 +60,7 @@ function PartContent({ part, locale }: { part: LessonPart; locale: Locale }) {
     }
 
     return (
-      <div className="mt-4 flex aspect-video items-center justify-center surface-media border-2 border-dashed border-ink bg-paper p-6 text-center">
-        <div>
-          <PlayCircle className="mx-auto size-10 text-ink" />
-          <p className="mt-3 text-sm font-black text-muted">
-            {locale === "sr" ? "Video za ovaj deo lekcije još nije dodat." : "The video for this part of the lesson has not been added yet."}
-          </p>
-        </div>
-      </div>
+      <IgraState compact variant="uskoro" locale={locale} className="mt-4" title={locale === "sr" ? "Video za ovaj deo lekcije još nije dodat." : "The video for this part of the lesson has not been added yet."} />
     );
   }
 
@@ -96,9 +91,7 @@ function PartContent({ part, locale }: { part: LessonPart; locale: Locale }) {
   return part.body ? (
     <RichTextContent value={locale === "sr" ? part.bodyRich?.sr : part.bodyRich?.en} fallback={localized(part.body, locale)} className="type-reading type-measure text-muted" />
   ) : (
-    <p className="mt-4 text-sm font-bold text-muted">
-      {locale === "sr" ? "Tekst za ovaj deo lekcije još nije dodat." : "The text for this part of the lesson has not been added yet."}
-    </p>
+    <IgraState compact variant="uskoro" locale={locale} className="mt-4" title={locale === "sr" ? "Tekst za ovaj deo lekcije još nije dodat." : "The text for this part of the lesson has not been added yet."} />
   );
 }
 
@@ -403,6 +396,7 @@ export function CoursePlayer({
               // ostane jedan red teksta u panelu visokom pola ekrana (§5 U11).
               <EmptyState
                 icon={FileText}
+                art={<IgraArt id="prazno.uskoro" size="lg" decorative />}
                 title={locale === "sr" ? "Lekcija još nema sadržaj" : "This lesson has no content yet"}
                 body={
                   locale === "sr"
@@ -458,9 +452,7 @@ export function CoursePlayer({
             );
           })}
           {!lesson.assets.length ? (
-            <p className="surface-inset border-2 border-dashed border-line bg-paper p-3 text-sm font-black text-muted">
-              {locale === "sr" ? "Nema materijala." : "No materials yet."}
-            </p>
+            <IgraState compact variant="prazno" art="prazno.pretraga" locale={locale} title={locale === "sr" ? "Nema materijala." : "No materials yet."} />
           ) : null}
         </div>
       </Panel>

@@ -19,6 +19,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { CommentsSection } from "@/components/app/community-comments";
 import { CommunityAvatar, formatCommunityTime } from "@/components/app/community-identity";
 import { CommunityPostEditor, type CommunityEditorPost } from "@/components/app/community-post-editor";
@@ -27,7 +28,7 @@ import { RichTextContent } from "@/components/app/rich-text";
 import { ShareThreadButton } from "@/components/app/community-v2/community-share";
 import { AuthorRankChip } from "@/components/igra/community/author-rank-chip";
 import { COMMUNITY_RICH_TEXT } from "@/lib/rich-text";
-import { Panel, cn } from "@/components/ui/primitives";
+import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -373,23 +374,24 @@ export function LiveCommunityThreadEditorPage({ locale, postId }: { locale: Loca
 
   if (!post || !viewerData?.profile || post.authorId !== viewerData.profile.userId) {
     return (
-      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-6 text-center shadow-none">
-        <CircleAlert className="mx-auto size-9 text-amber-600" />
-        <h1 className="mt-4 type-h1 text-ink">
-          {locale === "sr" ? "Editor nije dostupan" : "Editor is not available"}
-        </h1>
-        <p className="mt-2 type-body-sm font-semibold text-muted">
-          {locale === "sr"
-            ? "Ovu temu može da menja samo onaj ko ju je napisao. Vrati se na prikaz za čitanje."
-            : "Only the person who wrote this topic can edit it. Go back to the reading view."}
-        </p>
-        <Link
-          href={withLocale(locale, `/app/community/${postId}`)}
-          className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink"
-        >
-          {locale === "sr" ? "Otvori temu" : "Open topic"}
-        </Link>
-      </Panel>
+      <div className="mx-auto max-w-xl">
+        <IgraState
+          page
+          variant="zakljucano"
+          locale={locale}
+          title={locale === "sr" ? "Editor nije dostupan" : "Editor is not available"}
+          body={
+            locale === "sr"
+              ? "Ovu temu može da menja samo onaj ko ju je napisao. Vrati se na prikaz za čitanje."
+              : "Only the person who wrote this topic can edit it. Go back to the reading view."
+          }
+          action={
+            <LinkButton href={withLocale(locale, `/app/community/${postId}`)} tone="yellow">
+              {locale === "sr" ? "Otvori temu" : "Open topic"}
+            </LinkButton>
+          }
+        />
+      </div>
     );
   }
 
@@ -433,22 +435,25 @@ function ThreadLoading({ locale }: { locale: Locale }) {
 
 function ThreadUnavailable({ locale }: { locale: Locale }) {
   return (
-    <Panel className="mx-auto max-w-xl surface-card border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_var(--shadow-hard-13)]">
-      <CircleAlert className="mx-auto size-9 text-amber-600" />
-      <h1 className="mt-4 type-h1 text-ink">{locale === "sr" ? "Tema nije dostupna" : "Topic unavailable"}</h1>
-      <p className="mt-2 type-body-sm font-semibold text-muted">
-        {locale === "sr"
-          ? "Tema je obrisana, još nije objavljena ili je na kursu koji još nemaš."
-          : "The topic was deleted, is not published yet, or belongs to a course you do not have yet."}
-      </p>
-      <Link
-        href={withLocale(locale, "/app/community/discussions")}
-        className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
-      >
-        <ArrowLeft className="size-4" />
-        {locale === "sr" ? "Nazad na diskusije" : "Back to discussions"}
-      </Link>
-    </Panel>
+    <div className="mx-auto max-w-xl">
+      <IgraState
+        page
+        variant="404"
+        locale={locale}
+        title={locale === "sr" ? "Tema nije dostupna" : "Topic unavailable"}
+        body={
+          locale === "sr"
+            ? "Tema je obrisana, još nije objavljena ili je na kursu koji još nemaš."
+            : "The topic was deleted, is not published yet, or belongs to a course you do not have yet."
+        }
+        action={
+          <LinkButton href={withLocale(locale, "/app/community/discussions")} tone="yellow">
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            {locale === "sr" ? "Nazad na diskusije" : "Back to discussions"}
+          </LinkButton>
+        }
+      />
+    </div>
   );
 }
 

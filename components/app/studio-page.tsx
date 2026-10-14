@@ -9,6 +9,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { IgraState } from "@/components/igra/igra-state";
 import { AppIntroPanel } from "@/components/app/intro-panel";
 import { StudioMediaDetail } from "@/components/app/studio-media-detail";
 import { CreaCommunityLinks, CreaRefNotice } from "@/components/crea/community/crea-ref-notice";
@@ -1046,13 +1047,16 @@ export function StudioPage({
 
     if (catalog.length === 0) {
       return (
-        <p className="surface-card border-2 border-ink bg-paper p-4 type-body-sm font-bold text-muted shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
-          {t(
+        <IgraState
+          variant="uskoro"
+          locale={locale}
+          title={t(locale, "Alati trenutno miruju", "The tools are resting")}
+          body={t(
             locale,
             "Nijedan alat za pravljenje sadržaja trenutno nije uključen. Ovo nije do tvog naloga - probaj ponovo kasnije ili se javi podršci.",
             "No content tool is switched on right now. This is not about your account - try again later or contact support.",
           )}
-        </p>
+        />
       );
     }
 
@@ -1060,9 +1064,7 @@ export function StudioPage({
 
     if (!activeModel) {
       return (
-        <p className="surface-card border-2 border-ink bg-paper p-4 type-body-sm font-bold text-muted shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
-          {CREA_STAGE_COPY.noModels[locale]}
-        </p>
+        <IgraState variant="uskoro" locale={locale} title={t(locale, "Ovaj način rada miruje", "This mode is resting")} body={CREA_STAGE_COPY.noModels[locale]} />
       );
     }
 
