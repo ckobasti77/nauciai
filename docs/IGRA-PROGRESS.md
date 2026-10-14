@@ -1063,3 +1063,6 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 - **Ukus:** visina banera na računaru (4:1, u aplikaciji oko 280 px; `md:aspect-[4/1]` u `profile-banner.tsx`), kalendar od 52 nedelje sa „kapima“ mastila, i da li ti fali red značaka pored imena (ODLUKA 7). Snimci: `K13-profil-moj-1440-svetla.png`, `K13-profil-tudji-1440-tamna.png`, `K13-baner-izbor-1440-svetla.png`.
 - **Budžet profila:** 366 / 371 KB; sledeći korak koji nešto doda profilu treba da gleda `check:bundle`.
 - **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**
+
+## K14 - Plan: Crea   (2026-10-14 08:38)
+**Plan korak.** Plan je upisan u `docs/igra/planovi/K14.md`. Nije menjan kod.
