@@ -1118,6 +1118,7 @@ export function DashboardContent({
   isAdmin = false,
   inlineLocale = locale,
   inlinePreview = false,
+  journey,
 }: {
   locale: Locale;
   profile?: ViewerProfile;
@@ -1125,6 +1126,11 @@ export function DashboardContent({
   isAdmin?: boolean;
   inlineLocale?: Locale;
   inlinePreview?: boolean;
+  /**
+   * IGRA K10: mapa puta iznad spiska lekcija. Stiže kao gotov element jer se ovaj fajl
+   * učitava na svakoj ruti aplikacije i ne sme da uvozi IGRA kod (vidi `dashboard-live.tsx`).
+   */
+  journey?: ReactNode;
 }) {
   const t = dictionary[locale];
   const modules = useMemo(() => flattenModules(course, locale), [course, locale]);
@@ -1275,6 +1281,7 @@ export function DashboardContent({
           </div>
         </div>
         <div className="space-y-4 p-6">
+          {journey}
           {modules.flatMap((module) => module.lessons).map((lesson, lessonIndex) => (
             <details key={lesson.id ?? lesson.slug} className="group overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong" open={lessonIndex === 0}>
               <summary className="flex min-h-16 cursor-pointer list-none items-center gap-4 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">

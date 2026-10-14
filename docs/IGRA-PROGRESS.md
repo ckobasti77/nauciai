@@ -704,3 +704,103 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
   - uz „smanji pokrete" kartice kursa (otključana i zaključana) crtaju `tabindex` na serveru, a ne u pregledaču (`whileTap`), pa React prijavi nepoklapanje hidratacije;
   - kostur kartice „Nastavi" je 256 px, a kartica 309–337 px (i pre ovog koraka).
 - **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**
+
+## K10 — Mapa puta (staze i kursevi)   (2026-10-14 06:15)
+**Fajlovi:**
+- novi (lib): `lib/igra-journey.ts` + test `lib/igra-journey.test.ts`
+- novi (IGRA komponente): `components/igra/journey-map.tsx` (`JourneyMap`), `components/igra/course-journey.tsx` (`CourseJourney`: lekcije kursa → mapa)
+- novi (izlog): `components/igra/izlog/izlog-mapa.tsx`, `docs/igra/snimci/K10-*.png` (22)
+- izmenjeni (površine): `components/app/track-experience.tsx` (mapa iznad mreže kurseva), `components/app/dashboard-content.tsx` (samo prop `journey` i jedno mesto u panelu „Nastavni tok"), `components/app/dashboard-live.tsx` (`LazyCourseJourney` + prosleđivanje), `components/app/dashboard.tsx` (prosleđivanje u grani bez Convex-a)
+- izmenjeni (ostalo): `app/globals.css` (klasa `.igra-journey-pulse` + keyframes), `lib/igra-copy.ts` (`IGRA_JOURNEY_COPY`, `IGRA_LESSON_FORMS`), `components/igra/izlog/registry.ts`, `lib/igra-izlog.test.ts`
+
+**Šta je urađeno:** Staza i kurs imaju mapu puta: rukom nacrtanu liniju kroz stanice, na listu papira sa scenom `scena.mapa-puta` u pozadini. Na stranici kursa stanice su lekcije (mapa stoji u panelu „Nastavni tok", iznad postojećeg spiska), na stranici smera kursevi (iznad mreže kartica). Stanica je urađena (krug u mastilu sa kvačicom), sledeća (žut krug, Robi i pilula „Ti si ovde"), dostupna (prazan krug sa brojem) ili zaključana (isprekidan krug sa katancem). Pređeni deo puta je puna linija mastilom, ostatak tačkast; kad mapa uđe u kadar pređeni deo se iscrta (GSAP DrawSVG, koji se tek tada i skida), Robi iskoči, a žuta stanica otkuca tri puta i stane. Mapa ima dva rasporeda u istom HTML-u i bira ih CSS po širini same mape: uspravna linija sa stanicom na svakih 88 px (telefon) i vijugava putanja u redovima do pet stanica (šire od 40rem). Geometrija je čista funkcija broja stanica (`journeyLayout`), ista na serveru i u pregledaču, pa nema merenja u JavaScript-u, skoka posle hidratacije ni vodoravnog skrola. Stanice su jedna `<ol>` redom kojim ide put. `convex/`, rute i logika napretka nisu dirani.
+
+**Površine:**
+- gotovo: mapa puta 6.3 kao komponenta (1, 5 i 20 stanica, obe teme, 390 i 1440 px, sr i en, bez slika, smanjen pokret), stranica kursa (u izlogu, prava `DashboardContent` sa istim lenjim chunk-om), stranica smera (mapa u izlogu nad istom funkcijom `courseStations`).
+- delimično: prava stranica smera i prava stranica kursa nad živim nalogom nisu gledane u pregledaču (BLOKADA dole).
+- nije dirano: spisak lekcija ispod mape (ostaje zbog sažetaka i admin uređivanja), kartice kurseva, plejer, `convex/`.
+
+**Kako se koristi (za K11 i dalje):**
+- `<JourneyMap stations={…} locale label="…" className="…" />`; okvir i radijus daje pozivalac (`surface-inset` + tanka ivica u tuđem okviru, `surface-card border-2 border-ink` kad stoji sama).
+- Stanice: `lessonStations({ courseSlug, lessons, canOpen, locale })` i `courseStations({ courses, locale })` iz `lib/igra-journey.ts`; proizvoljan niz kroz `journeyStates([{ done, locked }])`.
+- `components/app/dashboard.tsx` i `dashboard-live.tsx` uvoze i `/app` i učionica (zbog `staticDashboardCourses` i re-exporta): IGRA kod sme u njih samo kroz `next/dynamic` (čuva test).
+
+**ODLUKE (odstupanja od plana K07 §3 i ono što plan nije rekao):**
+1. **Stanice kursa su objavljene lekcije, ne moduli.** Zadatak i IGRA-PLAN §2.3 kažu „moduli", K07 §3 kaže lekcije. Stranica kursa prikazuje kurs kao ravan spisak lekcija i naslove modula nigde ne ispisuje, a kurs sa jednim modulom imao bi mapu od jedne stanice. Radio sam po K07.
+2. **Put su dve putanje (pređeni deo i ostatak), ne jedna sa `pathLength` i crticama do udela.** Tako je pređeni deo tačno do stanice bez numeričkog uzorkovanja dužine, vidi se i bez JavaScript-a, a DrawSVG ga samo otkriva od 0 do 100 %. `pathLength` i DrawSVG se uz to sudaraju (DrawSVG piše crtice u pikselima). Zato `journeyLayout` ne vraća udele dužine nego delove puta po stanicama.
+3. **Raspored bira širina SAME mape (container query, prag 40rem), ne `md:` ekrana.** Ista mapa stoji u panelu kursa i na stranici smera, sa sidebarom i bez njega; na ekranu od 1024 px panel kursa je širok oko 660 px (računato iz 714 px sadržaja, K08) i dobija široki raspored.
+4. **Široki raspored se skalira srazmerno** (viewBox širine 1000, najviše 65rem), jer DrawSVG ne ume da izmeri nesrazmerno razvučenu putanju. Posledica: razmak redova raste sa širinom (oko 158 px na mapi od 650 px, 275 px na mapi od 1.128 px). Zato od 60rem krug stanice raste sa 44 na 56 px, natpis sa 14 na 16 px, a Robi sa 56 na 80 px.
+5. **Redovi su ujednačeni:** 7 stanica je 4 + 3, 6 je 3 + 3, 11 je 4 + 4 + 3 (plan: uvek po 5, pa ostatak).
+6. **„Ti si ovde" je pilula u mastilu i Robi** (56 / 80 px, ne `md` 64): široko iznad stanice, uspravno uz desnu ivicu reda. Par je dekorativan; čitač ekrana isto čuje kao tekst u linku, a link nosi `aria-current="step"`.
+7. **Scena je na 30 % (na telefonu 20 %),** plan je rekao oko 35 %. Na telefonu Robi stoji baš preko crteža kule, pa je tamo slabija. Natpisi imaju oreol u boji papira (kao na štampanoj mapi), da ostanu čitljivi preko crteža i preko krivine puta.
+8. **Mapa kursa zaključava po vlasništvu (`isCourseOwned`), ne po `hasAccess`.** `hasAccess` je tačan za svaki objavljen kurs, pa bi kurs koji student nema imao „sledeću" stanicu i linkove ka lekcijama. Ovako je ceo zaključan i nijedna stanica nije link, isto pravilo kao katalog učionice. Admin vidi sve otključano.
+9. **Smer crta mapu tek kad stigne vlasništvo** (`getAppNavigation`, isti upit i argumenti kao sidebar). Do tada mape nema i nema ni kostura: kurs koji student nema ne sme ni na trenutak da izgleda otključano. Admin (i admin pregled sadržaja) mapu dobija odmah.
+10. **Mapa kursa je lenji chunk** (`LazyCourseJourney` u `dashboard-live.tsx`, `next/dynamic` sa SSR-om). Sa običnim uvozom mapa je preko `dashboard.tsx` ulazila u početni JS table i učionice: `/app` je bio 293 od 294 KB. Posledica: na stranici kursa mapa stigne trenutak posle spiska lekcija (ispod prevoja je).
+11. **`DashboardContent` je dobio prop `journey?: ReactNode`** umesto uvoza mape: fajl se učitava na svakoj ruti aplikacije i ne sme da uvozi IGRA kod (test iz K08).
+12. **Crtanje traje 0,6–1,6 s, po dužini pređenog puta** (plan: uvek 1,2 s): potez do prve stanice inače bi se crtao isto koliko i put kroz 15 stanica.
+13. **Puls kreće tek kad se put iscrta** (`data-journey-drawn`), tri otkucaja po 1,4 s. Da je čist CSS, otkucao bi dok je mapa još ispod prevoja.
+14. **Pređeni deo ide do „sledeće" stanice** i kad je pre nje zaključana ili preskočena; bez „sledeće" do poslednje urađene.
+15. **Stanica smera uvek vodi na stranicu kursa** (i zaključana: tamo je kupovina). Ispod naslova piše „3/9 lekcija", za zaključan kurs samo „6 lekcija"; kod lekcija trajanje.
+16. **Put počinje kratkim potezom pre prve stanice**, pa je mapa od jedne stanice „tačka i potez". Na kraju puta nema cilja ni zastavice (`rang.meta` nije upotrebljen).
+17. **Mapa je svetao list i u tamnoj temi** (`paper-island`, boja `--igra-scene-paper`), kao heroj table.
+18. **Skillovi:** pre UI koda sam pročitao `impeccable/SKILL.md` i `reference/craft-floor.md`, `design-taste-frontend/SKILL.md`, `design-dna/SKILL.md`, `gsap-react` i deo `gsap-plugins` o DrawSVG-u. Nisam čitao `design-dna-platform.json` ni `motion-design`, i nisam pokretao impeccable `context.mjs`.
+19. `IGRA_PLANNED_ART` i dalje ima tri reda (`lib/igra-art.ts` nisam dirao).
+
+**Novi paketi:** nema.
+
+**Testovi (1 nov fajl, 40 testova; 1 postojeći dopunjen):**
+- `lib/igra-journey.test.ts` (40): geometrija za 1, 2, 5, 6, 7, 9, 20 i 23 stanice (broj tačaka i delova, cela putanja u kutiji, svaki deo se završava u svojoj stanici), jedna stanica, pet u redu, dvadeset u četiri reda sa smenom smera, ujednačeni redovi, uspravni raspored na 88 px, susedne stanice susedne na putu, determinizam (bez `Math.random` i `Math.sin`), loš ulaz; podela puta na pređeni deo i ostatak; stanja stanica i dokle je put pređen; trajanje crtanja; stanice kursa i smera nad test korisnicima (stanja, adrese kroz `lib/app-routes`, nacrti, oba jezika, množina); tekstovi bez pretnje i nagrade; čitanje izvora: komponenta je prezentaciona, slike samo kroz `IgraArt`, DrawSVG samo lenjo i tek posle provere pokreta i ulaska u kadar, nema `pathLength`, `<ol>` sa `aria-current="step"`, raspored bez merenja u JavaScript-u, puls u no-preference bloku sa tri otkucaja, `dashboard-content.tsx` bez IGRA uvoza, mapa kursa samo kao lenji chunk, smer čeka vlasništvo.
+- izmenjen: `lib/igra-izlog.test.ts` (deo „mapa").
+
+**Slike:** `scena.mapa-puta` (pozadina), `lik.robi.mase` („Ti si ovde"). TRAŽENE SLIKE: nema.
+
+**Rezultat provere:**
+- codegen: nije potreban (`convex/` nije diran)
+- typecheck: prošlo (i posle build-a)
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (308 fajlova, 3.437 testova)
+- check:frames, check:corners, check:white, check:igra (i `--strict`): prošlo
+- build: prošao (tri puta, svaki iz prvog pokušaja)
+- **check:bundle: prošlo.**
+
+| Šta (gzip) | Posle K09 | Posle K10 | Granica |
+|---|---|---|---|
+| `/app` početni JS | 290 KB | 290 KB | 294 |
+| `/app/classroom` | 285 | 286 | 315 |
+| `/app/classroom/courses/[courseSlug]` | 268 | 269 | 309 |
+| `/app/classroom/courses/[courseSlug]/lessons/[lessonSlug]` | 280 | 281 | 317 |
+| `/app/classroom/tracks/[trackSlug]` | 281 | 287 | 311 |
+| `/app/community/leaderboard` | 278 | 279 | 303 |
+| `/app/members/[username]` | 345 | 346 | 371 |
+| javna početna | 139 | 139 | 153 |
+
+  Pre lenjog chunk-a (ODLUKA 10) isti build je dao: `/app` 293, učionica 289, kurs 280.
+- **pregledač (Playwright, 1440 × 900 i 390 × 844, obe teme, sr i en), izmereno u izlogu:**
+  - 1, 5 i 20 stanica na 390, 700 i 1440 px: nijedna stanica ne prelazi preko druge ni van mape, „Ti si ovde" je uvek u mapi, nema vodoravnog skrola (strana 390 / 390, mapa 354 / 354), 0 slomljenih slika
+  - visina mape: 1 stanica 124 px (telefon) / 297 px (1440); 5 stanica 476 / 297 px; 20 stanica 1.796 / 1.121 px; na 700 px (najuži široki raspored) 20 stanica 669 px
+  - mete: red stanice na telefonu 88 px visok, široko 88–102 px
+  - DrawSVG: pre nego što mapa uđe u kadar 0 zahteva, pređeni deo sakriven, drugi raspored netaknut; posle skrola jedan zahtev (`DrawSVGPlugin`), put se iscrta, zatim puls `igra-journey-pulse` × 3
+  - smanjen pokret: 0 zahteva za DrawSVG, put i Robi odmah vidljivi, bez pulsa
+  - fokus: Tab kroz 20 stanica ide redom kojim ide put, na 1440 i na 390 px; obrub fokusa 2 px u mastilu
+  - čitač ekrana: lista „Mapa puta kroz kurs", 20 stavki, jedna `aria-current="step"` sa tekstom „Završni zadatak 7 min (Ti si ovde)", urađena „Šta je prompt 7 min (Urađeno)" (broj u krugu je skriven od čitača, redni broj daje lista)
+  - bez slika (blokiran `/brand/igra/**`): papir sa mrežom, ista visina mape, Robi kao rezervna ikonica
+  - stranica kursa: mapa je u HTML-u sa servera (3 mape u odgovoru), crta se kroz lenji chunk, 9 stanica; test korisnik bez kursa vidi sve stanice zaključane i bez linkova
+  - kontrast (izračunato): sitan tekst na papiru mape 5,7:1, broj na žutoj stanici 7,7:1
+  - konzola bez grešaka i bez upozorenja o hidrataciji; jedino upozorenje je poruka biblioteke `motion` dok je uključen smanjen pokret
+- impeccable detektor nad novim fajlovima: bez nalaza
+- dev server je ugašen (portovi 3000 / 3123 / 3124 slobodni, nijedan `next` ni `convex` proces); Playwright `page-*.yml` i `console-*.log` i pomoćni fajlovi iz `.igra-run/tmp` su obrisani.
+
+**Prihvatanje (K10):**
+- Mapa radi za kurs sa 1, 5 i 20 stanica, u obe teme i na telefonu: **ispunjeno u izlogu** (snimci `K10-mapa-1-*`, `K10-mapa-5-*`, `K10-mapa-20-*`, `K10-kurs-*`, `K10-smer-*`).
+- typecheck / lint / test / check:frames prolaze, sekcija K10 u progress-u: **ispunjeno**.
+
+**BLOKADA (samo provera, ne kod):** prava stranica kursa i prava stranica smera nad živim nalogom nisu gledane u pregledaču. Razlog je isti kao u K06, K08 i K09: žive iza prijave, a Playwright nije prijavljen (auth tok se ne dira, tuđe lozinke se ne unose). Šta JESTE provereno: ista mapa, iste funkcije za stanice i isti lenji chunk u izlogu, typecheck nad povezivanjem i testovi nad izvorom. Nije potvrđeno: (a) da `LiveStudentDashboard` posle upita prosledi mapu u panel; (b) da na stranici smera vlasništvo iz `getAppNavigation` stigne i da se mapa tada pojavi iznad kartica; (c) izgled mape u admin pregledu sadržaja (`admin-content-manager.tsx` crta istu `TrackExperience`).
+
+**Za Jovana ujutru:**
+- **Prijavi se na DEV i otvori stranicu kursa i stranicu smera** (`npx next dev --webpack -p 3123`): mapa treba da stoji u panelu „Nastavni tok", odnosno iznad kartica kurseva, sa Robijem na lekciji ili kursu koji ti je sledeći. Na smeru se pojavi trenutak posle ostatka strane (čeka vlasništvo, ODLUKA 9).
+- **Lekcije, ne moduli** (ODLUKA 1): ako želiš module kao stanice, menja se samo `CourseJourney` (jedna funkcija za stanice), mapa ostaje ista.
+- **Visina:** kurs od 20 lekcija ima mapu visoku 1.120 px na računaru i 1.800 px na telefonu, iznad spiska lekcija. Ako je previše, razmak redova (`rowGap`) i korak na telefonu (`step`) su dve konstante u `lib/igra-journey.ts`.
+- **Kurs koji student nema** je na svojoj stranici ceo zaključan na mapi (ODLUKA 8), dok dugme „Nastavi lekciju" u zaglavlju i dalje postoji (zatečeno, `hasAccess`).
+- **Ukus:** jačina scene (30 %, na telefonu 20 %), veličina Robija i pilula „Ti si ovde" u mastilu su po jedna klasa u `journey-map.tsx`. Snimci za poređenje: `K10-mapa-5-1440-svetla.png`, `K10-mapa-20-700-svetla.png` (najgušći slučaj), `K10-kurs-390-svetla.png`.
+- **Zatečeno, nisam dirao:** spisak lekcija ispod mape ponavlja iste lekcije (ostao je zbog sažetaka i admin uređivanja, K07 ODLUKA 11); „Zdravo, student" i „Objavljen smer" na stranici smera nisu kroz `lib/i18n`.
+- **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**

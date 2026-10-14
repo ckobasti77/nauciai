@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 
 import { IzlogLjuska } from "@/components/igra/izlog/izlog-ljuska";
+import { IzlogMapa } from "@/components/igra/izlog/izlog-mapa";
 import { IzlogPokret } from "@/components/igra/izlog/izlog-pokret";
 import { IzlogPrimitivi } from "@/components/igra/izlog/izlog-primitivi";
 import { IzlogSlike } from "@/components/igra/izlog/izlog-slike";
@@ -27,4 +28,5 @@ export const IZLOG_PARTS: readonly IzlogPart[] = [
   { id: "ljuska", label: { sr: "Ljuska aplikacije", en: "App shell" }, Part: IzlogLjuska },
   { id: "tabla", label: { sr: "Kontrolna tabla", en: "Dashboard" }, Part: IzlogTabla },
   { id: "ucionica", label: { sr: "Učionica", en: "Classroom" }, Part: IzlogUcionica },
+  { id: "mapa", label: { sr: "Mapa puta", en: "Journey map" }, Part: IzlogMapa },
 ];

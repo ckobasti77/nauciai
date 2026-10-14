@@ -3,17 +3,23 @@
 import { ArrowRight, MessageCircle, PlayCircle, Trash2, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { useMutation } from "convex/react";
+import { useConvexAuth } from "@convex-dev/auth/react";
+import { useMutation, useQuery } from "convex/react";
 
 import { InlineContentText } from "@/components/app/inline-content";
 import type { DashboardCourse } from "@/components/app/dashboard-content";
 import { DashboardCourseCard } from "@/components/app/dashboard-course-card";
 import { InlineRichText } from "@/components/app/rich-text";
+import { JourneyMap } from "@/components/igra/journey-map";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { findCourse } from "@/lib/content";
+import { isCourseOwned } from "@/lib/course-catalog";
+import type { LiveNavigationResult } from "@/lib/dashboard-courses";
+import { IGRA_JOURNEY_COPY } from "@/lib/igra-copy";
+import { courseStations } from "@/lib/igra-journey";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -155,6 +161,25 @@ export function TrackExperience({ data, locale, admin = false, inlineLocale = lo
   const sectionEyebrow = data.track.pageCopy?.sectionEyebrow;
   const sectionTitle = data.track.pageCopy?.sectionTitle;
 
+  // IGRA K10: mapa puta kroz kurseve smera. `getTrackPage` ne nosi vlasništvo, pa se čita iz
+  // upita koji sidebar već drži (ista pretplata). Dok ne stigne mape nema: kurs koji
+  // student nema ne sme ni na trenutak da izgleda otključano. Admin vidi sve otključano.
+  const { isAuthenticated } = useConvexAuth();
+  const navigation = useQuery(api.courses.getAppNavigation, isAuthenticated ? {} : "skip") as LiveNavigationResult;
+  const journey = admin || navigation
+    ? courseStations({
+        locale,
+        courses: data.courses.map((course) => ({
+          id: course._id,
+          slug: course.slug,
+          title: { sr: course.titleSr, en: course.titleEn },
+          owned: isCourseOwned({ owned: navigation?.courses?.find((item) => item.slug === course.slug)?.owned, hasAccess: Boolean(course.hasAccess) }, admin),
+          completedLessons: course.progress?.completedLessons ?? 0,
+          totalLessons: course.progress?.totalLessons ?? course.lessons?.length ?? 0,
+        })),
+      })
+    : null;
+
   return (
     <div className="mx-auto max-w-[1440px] space-y-6">
       <section className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[8px_8px_0_var(--shadow-hard-13)]">
@@ -175,7 +200,7 @@ export function TrackExperience({ data, locale, admin = false, inlineLocale = lo
       </section>
       <TrackVideoSection locale={locale} trackId={trackId} videoUrl={data.track.videoUrl} videoFileName={data.track.videoFileName} admin={admin && Boolean(trackId)} title={data.track.pageCopy?.introVideoTitle} />
       {data.featuredThreads?.length ? <section><h2 className="font-display type-display-sm text-ink">Izdvojeno iz zajednice</h2><div className="mt-4 grid gap-4 md:grid-cols-2">{data.featuredThreads.map((thread) => <Link key={thread._id} href={withLocale(locale, `/app/community/${thread._id}`)} className="rounded-[16px] border-2 border-ink bg-paper-strong p-6 shadow-[4px_4px_0_var(--shadow-hard-10)]"><p className="font-black">{thread.title}</p><p className="mt-2 line-clamp-2 text-sm font-semibold text-muted">{thread.body}</p></Link>)}</div></section> : null}
-      <section id="kursevi" className="scroll-mt-6"><div><p className="type-eyebrow text-muted"><InlineContentText entityId={trackId} kind="track" field="pageCopy_sectionEyebrow" locale={inlineLocale} sr={sectionEyebrow?.sr ?? "Nastavni sadržaj"} en={sectionEyebrow?.en ?? "Learning content"} admin={admin && Boolean(trackId)}>{local(locale, sectionEyebrow?.sr ?? "Nastavni sadržaj", sectionEyebrow?.en ?? "Learning content")}</InlineContentText></p><h2 className="mt-2 font-display type-display-sm text-ink"><InlineContentText entityId={trackId} kind="track" field="pageCopy_sectionTitle" locale={inlineLocale} sr={sectionTitle?.sr ?? "Kursevi ovog smera"} en={sectionTitle?.en ?? "Courses in this track"} admin={admin && Boolean(trackId)}>{local(locale, sectionTitle?.sr ?? "Kursevi ovog smera", sectionTitle?.en ?? "Courses in this track")}</InlineContentText></h2></div><div className="mt-5 grid gap-6 md:grid-cols-2">{data.courses.map((course) => <DashboardCourseCard key={course._id} locale={locale} course={asDashboardCourse(course)} isAdmin={admin} trackSlug={data.track.slug} />)}</div></section>
+      <section id="kursevi" className="scroll-mt-6"><div><p className="type-eyebrow text-muted"><InlineContentText entityId={trackId} kind="track" field="pageCopy_sectionEyebrow" locale={inlineLocale} sr={sectionEyebrow?.sr ?? "Nastavni sadržaj"} en={sectionEyebrow?.en ?? "Learning content"} admin={admin && Boolean(trackId)}>{local(locale, sectionEyebrow?.sr ?? "Nastavni sadržaj", sectionEyebrow?.en ?? "Learning content")}</InlineContentText></p><h2 className="mt-2 font-display type-display-sm text-ink"><InlineContentText entityId={trackId} kind="track" field="pageCopy_sectionTitle" locale={inlineLocale} sr={sectionTitle?.sr ?? "Kursevi ovog smera"} en={sectionTitle?.en ?? "Courses in this track"} admin={admin && Boolean(trackId)}>{local(locale, sectionTitle?.sr ?? "Kursevi ovog smera", sectionTitle?.en ?? "Courses in this track")}</InlineContentText></h2></div>{journey ? <JourneyMap stations={journey} locale={locale} label={IGRA_JOURNEY_COPY.trackLabel[locale]} className="mt-5 surface-card border-2 border-ink shadow-[6px_6px_0_var(--shadow-hard-10)]" /> : null}<div className="mt-5 grid gap-6 md:grid-cols-2">{data.courses.map((course) => <DashboardCourseCard key={course._id} locale={locale} course={asDashboardCourse(course)} isAdmin={admin} trackSlug={data.track.slug} />)}</div></section>
     </div>
   );
 }

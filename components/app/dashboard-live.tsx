@@ -2,6 +2,7 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
+import dynamic from "next/dynamic";
 
 import {
   DashboardContent,
@@ -19,6 +20,10 @@ import { withLocale, type Locale } from "@/lib/i18n";
 // (npr. `classroom-hub.tsx`) netaknutim.
 export { coursesFromLive, isLiveCatalogEmpty } from "@/lib/dashboard-courses";
 export type { LiveNavigationResult } from "@/lib/dashboard-courses";
+
+// IGRA K10: mapa puta na stranici kursa. Zaseban chunk: ovaj fajl uvoze i tabla i učionica
+// (preko `dashboard.tsx` i re-exporta iznad), a mapa je ispod prevoja i nosi manifest slika.
+export const LazyCourseJourney = dynamic(() => import("@/components/igra/course-journey").then((module) => module.CourseJourney));
 
 // Stranica kursa (`/app/classroom/courses/[courseSlug]`). Komandna tabla (`/app`) je u
 // `components/app/dashboard-home.tsx` i hrani se svojim agregatom.
@@ -52,7 +57,15 @@ export function LiveStudentDashboard({
     return <DashboardCourseNotFound locale={locale} />;
   }
 
-  return <DashboardContent locale={locale} profile={profile} course={course} isAdmin={isAdmin} />;
+  return (
+    <DashboardContent
+      locale={locale}
+      profile={profile}
+      course={course}
+      isAdmin={isAdmin}
+      journey={<LazyCourseJourney course={course} locale={locale} isAdmin={isAdmin} />}
+    />
+  );
 }
 
 function DashboardCourseNotFound({ locale }: { locale: Locale }) {

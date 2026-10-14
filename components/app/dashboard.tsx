@@ -1,5 +1,5 @@
 import { DashboardContent, type DashboardCourse } from "@/components/app/dashboard-content";
-import { LiveStudentDashboard } from "@/components/app/dashboard-live";
+import { LazyCourseJourney, LiveStudentDashboard } from "@/components/app/dashboard-live";
 import { courses, findCourse, studentProfile } from "@/lib/content";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import type { Locale } from "@/lib/i18n";
@@ -77,6 +77,7 @@ export function StudentDashboard({
       profile={resolvedProfile}
       course={fallbackCourse}
       isAdmin={resolvedProfile?.role === "admin"}
+      journey={<LazyCourseJourney course={fallbackCourse} locale={locale} isAdmin={resolvedProfile?.role === "admin"} />}
     />
   );
 }

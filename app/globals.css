@@ -483,6 +483,20 @@ body {
   }
 }
 
+/* IGRA (K10): „sledeća" stanica na mapi puta otkuca tri puta kad se put iscrta
+   (`data-journey-drawn` postavlja `journey-map.tsx`), pa miruje. Uz „manje pokreta"
+   klasa ne postoji: stanica je samo žuta. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-journey-drawn] .igra-journey-pulse {
+    animation: igra-journey-pulse 1.4s cubic-bezier(0.22, 1, 0.36, 1) 3;
+  }
+}
+
+@keyframes igra-journey-pulse {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--igra-marker) 75%, transparent); }
+  to { box-shadow: 0 0 0 14px color-mix(in srgb, var(--igra-marker) 0%, transparent); }
+}
+
 /* The sanctioned radius scale. These are the only values a new surface should
    use; `rounded-full` covers the pill tier. See AGENTS.md. */
 @utility surface-card {

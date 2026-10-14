@@ -116,6 +116,21 @@ export const IGRA_CLASSROOM_COPY = {
   courseDone: { sr: "Ovo je bila poslednja lekcija. Kurs je završen.", en: "That was the last lesson. The course is complete." },
 } satisfies Record<string, LocalizedText>;
 
+/** Mapa puta (K10): stanja stanica i nazivi mape za čitač ekrana. */
+export const IGRA_JOURNEY_COPY = {
+  here: { sr: "Ti si ovde", en: "You are here" },
+  done: { sr: "Urađeno", en: "Done" },
+  open: { sr: "Dostupno", en: "Available" },
+  locked: { sr: "Zaključano", en: "Locked" },
+  courseLabel: { sr: "Mapa puta kroz kurs", en: "Journey map of the course" },
+  trackLabel: { sr: "Mapa puta kroz smer", en: "Journey map of the track" },
+} satisfies Record<string, LocalizedText>;
+
+export const IGRA_LESSON_FORMS: Record<Locale, PluralForms> = {
+  sr: { one: "lekcija", few: "lekcije", many: "lekcija" },
+  en: { one: "lesson", few: "lessons", many: "lessons" },
+};
+
 export const IGRA_DAY_FORMS: Record<Locale, PluralForms> = {
   sr: { one: "dan", few: "dana", many: "dana" },
   en: { one: "day", few: "days", many: "days" },
