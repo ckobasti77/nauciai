@@ -49,6 +49,7 @@ const ROOTS = [
   "components/app/course-catalog-card.tsx",
   "components/app/admin-content-manager.tsx",
   "components/app/admin-inline-actions.tsx",
+  "components/app/admin-platform-settings.tsx",
   "components/app/studio-admin-page.tsx",
   "components/app/studio-media-grid.tsx",
   "components/app/studio-media-tile.tsx",

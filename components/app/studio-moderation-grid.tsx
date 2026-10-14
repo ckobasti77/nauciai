@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Eye, Play, Search, Volume2, X } from "lucide-react";
 
 import { CreaCommunityModeration } from "@/components/crea/community/crea-community-moderation";
+import { IgraArt } from "@/components/igra/igra-art";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
@@ -263,7 +264,8 @@ export function StudioModerationGrid({
         </div>
       ) : rawJobs.length === 0 ? (
         <div className="surface-card mx-auto max-w-md border-2 border-ink bg-paper-strong p-6 text-center shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
-          <p className="text-base font-bold text-muted">
+          <IgraArt id="prazno.pretraga" size="lg" decorative />
+          <p className="mt-3 text-base font-bold text-muted">
             {locale === "sr" ? "Nema poslova za ove filtere." : "No jobs match these filters."}
           </p>
         </div>

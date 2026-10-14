@@ -263,3 +263,73 @@ describe("admin strane: samo izgled", () => {
     expect(WINDOWS).toContain('art="admin.moderacija"');
   });
 });
+
+describe("K22: sadržaj, moderacija, Crea, čet, podešavanja — samo izgled", () => {
+  const MANAGER = read("components/app/admin-content-manager.tsx");
+  const QUEUE = read("components/app/community-thread-moderation.tsx");
+  const GRID = read("components/app/studio-moderation-grid.tsx");
+  const CREA = read("components/app/studio-admin-page.tsx");
+  const CHAT = read("components/app/chat/chat-moderation-console.tsx");
+  const SETTINGS = read("components/app/admin-platform-settings.tsx");
+  const HEAD = read("components/igra/admin/mission-queue-head.tsx");
+  const STAMP = read("components/igra/admin/ready-stamp.tsx");
+
+  it("svaka nova slika je u manifestu i spremna; sada je u upotrebi svih 8 admin.*", () => {
+    const ids = new Set<string>();
+    for (const src of [MANAGER, QUEUE, GRID, CREA, CHAT, SETTINGS, HEAD]) {
+      for (const match of src.matchAll(/(?:id|art)[=:] ?"((?:admin|scena|lik|prazno|ikona)\.[a-z.-]+)"/g)) ids.add(match[1]!);
+      for (const match of src.matchAll(/<IgraLik lik="([a-z]+)" poza="([a-z]+)"/g)) ids.add(`lik.${match[1]}.${match[2]}`);
+    }
+    for (const id of ["admin.troskovi", "admin.generacije", "admin.moderacija", "ikona.podesavanja", "prazno.pretraga", "lik.robi.slavi", "lik.robi.misli", "lik.bajt.misli"]) {
+      expect(ids, id).toContain(id);
+    }
+    for (const id of ids) expect(assets[id]?.ready, id).toBe(true);
+  });
+
+  it("red misija: broj na čekanju je deljena pretplata sa sidebarom, 100 → 100+, redni broj ne menja ključ ni akcije", () => {
+    expect(QUEUE).toContain('useQuery(api.notifications.getUserNotificationSummary, isStaff ? {} : "skip")');
+    expect(QUEUE).toContain("<MissionQueueHead locale={locale} pending={notificationSummary?.pendingApprovals} />");
+    expect(QUEUE).toContain("queue.results.length > 0 ? <MissionQueueHead");
+    expect(QUEUE).toContain("<Panel key={post._id}");
+    expect(QUEUE).toContain("<MissionNumber locale={locale} index={index} />");
+    expect(HEAD).toContain("Math.min(pending, ADMIN_PENDING_CAP)");
+    expect(HEAD).toContain("pending >= ADMIN_PENDING_CAP ?");
+    expect(HEAD).toContain("{index + 1}");
+    // Iste akcije, isti redosled i ista veličina strane; bez animacije po redu.
+    expect(QUEUE).toContain("useMutation(api.community.moderatePost)");
+    expect(QUEUE).toContain('decision: "approve"');
+    expect(QUEUE).toContain('decision: "request_changes"');
+    expect(QUEUE).toContain("{ initialNumItems: 8 }");
+    expect(QUEUE).toContain("queue.loadMore(8)");
+    for (const src of [QUEUE, HEAD, STAMP, GRID, CREA, CHAT, SETTINGS]) {
+      expect(src).not.toMatch(/useEnterStagger|loadIgraPlugin|FlipOrder|from "three"/);
+    }
+  });
+
+  it("spremnost: pečat samo kad je stavka spremna, nespremna zadržava pilulu x/y", () => {
+    expect(MANAGER).toContain("<ReadyStamp locale={locale} ready={readiness.ready}");
+    expect(STAMP).toContain('useStampIn(ref, { playKey: ready ? stampKey : "" })');
+    expect(STAMP).toContain("igra-stamp");
+    expect(STAMP).toContain("{done}/{total}");
+    expect(MANAGER).toContain('art={<IgraLik lik="bajt" poza="misli" size="lg" decorative />}');
+  });
+
+  it("Crea admin: novac bez odometra, iste mutacije i isti prekidač", () => {
+    expect(CREA).not.toContain("Odometer");
+    expect(CREA).toContain('<AdminHead art="admin.generacije"');
+    for (const mutation of ["studioAdmin.setStudioEnabled", "studioModels.setModelPrice", "studioModels.setModelEnabled", "modelCatalog.setModelCost", "creditPacks.upsertPack", "creditPacks.setPackActive"]) {
+      expect(CREA).toContain(`useMutation(api.${mutation})`);
+    }
+    expect(GRID).toContain("useMutation(api.studio.revealJobDetail)");
+  });
+
+  it("čet i podešavanja: iste mutacije, statusi prijava čitljivom reči", () => {
+    for (const mutation of ["reviewSuspensionAppeal", "openAdminUserChats", "openAdminConversationAccess", "updateReportStatus", "moderateReport", "suspendAccount"]) {
+      expect(CHAT).toContain(`useMutation(api.chatModeration.${mutation})`);
+    }
+    expect(CHAT).not.toMatch(/· \{(item|report\.report)\.status\}/);
+    expect(CHAT).toContain("reportStatusLabel(locale, item.status)");
+    expect(SETTINGS).toContain("useMutation(api.platformSettings.update)");
+    expect(SETTINGS).toContain('<AdminHead\n        art="ikona.podesavanja"');
+  });
+});

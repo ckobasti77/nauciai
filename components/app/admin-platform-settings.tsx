@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { Field, Input } from "@/components/ui/field";
-import { HandUnderline } from "@/components/ui/primitives";
+import { AdminHead } from "@/components/igra/admin/admin-head";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast-provider";
 import { t, type Locale } from "@/lib/i18n";
@@ -393,13 +393,11 @@ export function AdminPlatformSettingsPanel({ locale }: { locale: Locale }) {
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6">
-      <header>
-        <p className="type-eyebrow text-muted">{t(locale, "Administracija", "Administration")}</p>
-        <h1 className="mt-2 font-display type-display text-ink">
-          {t(locale, "Opšte informacije", "General info")}
-        </h1>
-        <HandUnderline size="sm" className="mt-1" />
-      </header>
+      <AdminHead
+        art="ikona.podesavanja"
+        eyebrow={t(locale, "Administracija", "Administration")}
+        title={t(locale, "Opšte informacije", "General info")}
+      />
 
       <Callout icon={Info} title={t(locale, "Prazno polje ništa ne prikazuje", "An empty field shows nothing")}>
         {t(

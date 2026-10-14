@@ -2,8 +2,11 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { AlertTriangle, CheckCircle2, Power, ShieldAlert, XCircle } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
+import { AdminHead } from "@/components/igra/admin/admin-head";
+import { IgraArt } from "@/components/igra/igra-art";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { Panel, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
@@ -12,7 +15,8 @@ import type { Doc } from "@/convex/_generated/dataModel";
 import { HEARTBEAT_STALE_MS } from "@/convex/studioCore";
 import { parsePriceRule } from "@/convex/studioPricing";
 import { formatEur } from "@/lib/credits-value";
-import type { Locale } from "@/lib/i18n";
+import { IGRA_ADMIN_COPY } from "@/lib/igra-admin-copy";
+import { withLocale, type Locale } from "@/lib/i18n";
 import {
   actualCostReasonLabel,
   computeMargin,
@@ -999,15 +1003,18 @@ function UsageSection({
   return (
     <Panel className="p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="type-h2 text-ink">{locale === "sr" ? "Potrošnja" : "Usage & Spend"}</h2>
-          <p className="mt-1 text-sm font-bold text-muted">
-            {summary
-              ? `${locale === "sr" ? "Danas" : "Today"}, ${summary.day}`
-              : locale === "sr"
-                ? "Danas"
-                : "Today"}
-          </p>
+        <div className="flex items-center gap-3">
+          <IgraArt id="admin.troskovi" size="sm" decorative className="shrink-0" />
+          <div>
+            <h2 className="type-h2 text-ink">{locale === "sr" ? "Potrošnja" : "Usage & Spend"}</h2>
+            <p className="mt-1 text-sm font-bold text-muted">
+              {summary
+                ? `${locale === "sr" ? "Danas" : "Today"}, ${summary.day}`
+                : locale === "sr"
+                  ? "Danas"
+                  : "Today"}
+            </p>
+          </div>
         </div>
 
         {summary ? (
@@ -1166,14 +1173,14 @@ export function StudioAdminPage({ locale = "sr" }: { locale?: Locale }) {
   return (
     <div className="min-h-screen bg-studio-canvas px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1200px] space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="type-eyebrow text-muted">
-              {locale === "sr" ? "Administracija" : "Administration"}
-            </p>
-            <h1 className="mt-2 font-display type-display text-ink">Crea</h1>
-          </div>
-        </header>
+        <AdminHead art="admin.generacije" eyebrow={locale === "sr" ? "Administracija" : "Administration"} title="Crea">
+          <Link
+            href={withLocale(locale, "/app/admin/analytics")}
+            className="mt-2 inline-flex min-h-11 items-center type-body-sm font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            {IGRA_ADMIN_COPY.creaPromptsLink[locale]}
+          </Link>
+        </AdminHead>
 
         {summary ? (
           <ProminentHealthAlert

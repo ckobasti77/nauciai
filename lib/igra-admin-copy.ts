@@ -58,4 +58,13 @@ export const IGRA_ADMIN_COPY = {
   chartDay: { sr: "Dan", en: "Day" },
   chartCount: { sr: "Broj", en: "Count" },
   chartEmpty: { sr: "Još nema zapisa.", en: "No records yet." },
+  // K22: red misija, pečat spremnosti, Crea admin.
+  missionQueue: { sr: "Red misija", en: "Mission queue" },
+  missionBody: {
+    sr: "Svaka objava je jedna misija: pročitaj je, pa je odobri ili zatraži izmenu.",
+    en: "Every post is one mission: read it, then approve it or request changes.",
+  },
+  mission: { sr: "Misija", en: "Mission" },
+  ready: { sr: "Spremno", en: "Ready" },
+  creaPromptsLink: { sr: "Crea upiti po danu su na Analitici", en: "Crea prompts per day live on Analytics" },
 } satisfies Record<string, LocalizedText>;

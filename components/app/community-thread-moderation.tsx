@@ -19,6 +19,8 @@ import { CommunityAvatar, formatCommunityTime, type CommunityRank, type Communit
 import { Dialog } from "@/components/ui/dialog";
 import { CommunityStickyToolbar } from "@/components/app/community-v2/community-sticky-toolbar";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MissionNumber, MissionQueueHead } from "@/components/igra/admin/mission-queue-head";
+import { IgraLik } from "@/components/igra/igra-lik";
 import { CommunityRouteSkeleton } from "@/components/app/community-v2/community-shared";
 import { Panel } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
@@ -66,6 +68,8 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
     { initialNumItems: 8 },
   );
   const moderatePost = useMutation(api.community.moderatePost);
+  // Isti poziv kao sidebar (`{}`), pa Convex deli pretplatu: „N na čekanju" je isti broj.
+  const notificationSummary = useQuery(api.notifications.getUserNotificationSummary, isStaff ? {} : "skip");
 
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const [requestPostId, setRequestPostId] = useState<string | null>(null);
@@ -166,6 +170,8 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
       </div>
       </CommunityStickyToolbar>
 
+      {queue.results.length > 0 ? <MissionQueueHead locale={locale} pending={notificationSummary?.pendingApprovals} /> : null}
+
       {error ? (
         <p role="alert" className="rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
           {error}
@@ -183,6 +189,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
       ) : queue.results.length === 0 ? (
         <EmptyState
           icon={ShieldCheck}
+          art={<IgraLik lik="robi" poza="slavi" size={120} decorative />}
           title={locale === "sr" ? "Red je čist" : "The queue is clear"}
           body={
             locale === "sr"
@@ -200,13 +207,14 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
         />
       ) : (
         <div className="space-y-3">
-          {(queue.results as ModerationPost[]).map((post) => {
+          {(queue.results as ModerationPost[]).map((post, index) => {
             const expanded = expandedPostId === post._id;
             const busy = activePostId === post._id;
             return (
               <Panel key={post._id} as="article" className="overflow-hidden rounded-[16px] border border-line bg-paper-strong shadow-none">
                 <div className="p-4 md:p-6">
                   <div className="flex items-start gap-3">
+                    <MissionNumber locale={locale} index={index} />
                     {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><CommunityAvatar
                       name={post.authorName}
                       avatarUrl={post.authorAvatarUrl}

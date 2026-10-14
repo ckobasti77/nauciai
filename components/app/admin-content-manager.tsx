@@ -36,6 +36,7 @@ import { AdminAnalyticsView } from "@/components/igra/admin/admin-analytics";
 import { AdminControlHero } from "@/components/igra/admin/admin-control-hero";
 import { AdminHead } from "@/components/igra/admin/admin-head";
 import { AdminKpiRow } from "@/components/igra/admin/admin-kpi";
+import { ReadyStamp } from "@/components/igra/admin/ready-stamp";
 import { IgraArt } from "@/components/igra/igra-art";
 import { IgraLik } from "@/components/igra/igra-lik";
 import type { IgraArtId } from "@/lib/igra-art";
@@ -922,7 +923,7 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
 
         <div className="min-w-0 space-y-6">
           {readiness ? <section className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_var(--shadow-hard-12)]" aria-label={t(locale, "Spremno za objavu", "Ready to publish")}>
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="type-eyebrow text-muted">{t(locale, "Kontrola sadržaja", "Content check")}</p><h2 className="mt-2 font-display type-display-sm text-ink">{readiness.ready ? t(locale, "Spremno za objavu", "Ready to publish") : t(locale, "Dovrši pre objave", "Finish before publishing")}</h2></div><span className={cn("rounded-full border-2 border-ink px-4 py-2 type-eyebrow", readiness.ready ? "bg-emerald-100 text-emerald-900" : "bg-yellow text-ink")}>{readiness.items.filter((item) => item.ok).length}/{readiness.items.length}</span></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="type-eyebrow text-muted">{t(locale, "Kontrola sadržaja", "Content check")}</p><h2 className="mt-2 font-display type-display-sm text-ink">{readiness.ready ? t(locale, "Spremno za objavu", "Ready to publish") : t(locale, "Dovrši pre objave", "Finish before publishing")}</h2></div><ReadyStamp locale={locale} ready={readiness.ready} done={readiness.items.filter((item) => item.ok).length} total={readiness.items.length} stampKey={`${selectedLesson?._id ?? selectedCourse?._id ?? selectedTrack?._id ?? ""}:ready`} /></div>
             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{readiness.items.map((entry) => <button key={entry.key} type="button" onClick={() => { if (entry.key === "slug" || entry.key === "view" || entry.key === "duration") setSettingsOpen(true); document.getElementById("admin-live-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cn("surface-inset flex min-h-12 items-center gap-3 border-2 px-3 py-2 text-left type-body-sm font-black", entry.ok ? "border-emerald-700 bg-emerald-50 text-emerald-900" : entry.blocking ? "border-red-700 bg-red-50 text-red-900" : "border-amber-700 bg-amber-50 text-amber-950")}>{entry.ok ? <CheckCircle2 className="size-5 shrink-0" /> : entry.blocking ? <XCircle className="size-5 shrink-0" /> : <AlertTriangle className="size-5 shrink-0" />}<span>{t(locale, entry.labelSr, entry.labelEn)}</span></button>)}</div>
           </section> : null}
 
@@ -949,6 +950,7 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
           ) : (
             <EmptyState
               icon={ListTree}
+              art={<IgraLik lik="bajt" poza="misli" size="lg" decorative />}
               title={t(locale, "Izaberi šta uređuješ", "Pick what to edit")}
               body={t(
                 locale,
