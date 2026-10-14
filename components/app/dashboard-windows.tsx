@@ -26,6 +26,7 @@ import type { api } from "@/convex/_generated/api";
 import { classroomPath, courseCatalogPath, lessonPath } from "@/lib/app-routes";
 import { dashboardZoneChipClass, type DashboardZoneId } from "@/lib/dashboard-zones";
 import type { RankChipView } from "@/lib/igra-a11y";
+import type { IgraArtId } from "@/lib/igra-art";
 import { localized, t as tr, withLocale, type Locale, type LocalizedText } from "@/lib/i18n";
 
 // Oblik koji vraća agregatni query — jedini izvor podataka za komandnu tablu.
@@ -108,6 +109,7 @@ export function DashboardWindow({
   eyebrow,
   title,
   icon: Icon,
+  art,
   badge,
   items,
   emptyTitle,
@@ -120,6 +122,8 @@ export function DashboardWindow({
   eyebrow: string;
   title: string;
   icon: LucideIcon;
+  /** IGRA nalepnica umesto ikone u pločici (K21: samo dva admin prozora). */
+  art?: IgraArtId;
   badge?: number;
   items: WindowRow[];
   /** Prazna zona nije jedna siva rečenica nego `EmptyState` sa sledećim korakom. */
@@ -150,7 +154,7 @@ export function DashboardWindow({
               dashboardZoneChipClass(zone),
             )}
           >
-            <Icon aria-hidden="true" className="size-5" />
+            {art ? <IgraArt id={art} size={32} decorative /> : <Icon aria-hidden="true" className="size-5" />}
           </span>
           <div className="min-w-0">
             <p className="type-eyebrow text-muted">{eyebrow}</p>
@@ -574,6 +578,7 @@ export function DashboardWindowsGrid({
             eyebrow={tr(locale, "Admin", "Admin")}
             title={tr(locale, "Nacrti i spremnost", "Drafts and readiness")}
             icon={PenLine}
+            art="admin.sadrzaj"
             badge={admin.drafts.total}
             items={adminContentRows}
             emptyTitle={tr(locale, "Nema nacrta", "No drafts")}
@@ -590,6 +595,7 @@ export function DashboardWindowsGrid({
             eyebrow={tr(locale, "Admin", "Admin")}
             title={tr(locale, "Moderacija i novi članovi", "Moderation and new members")}
             icon={ShieldCheck}
+            art="admin.moderacija"
             badge={admin.pendingApprovals}
             items={adminPeopleRows}
             emptyTitle={tr(locale, "Ništa ne čeka", "Nothing is waiting")}

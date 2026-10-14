@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { AlertTriangle, ArrowLeft, BarChart3, BookOpen, CheckCircle2, CirclePlus, Database, FileText, GraduationCap, Layers, ListTree, Megaphone, Save, Settings2, Shield, Users, Wand2, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BarChart3, CheckCircle2, CirclePlus, Database, ListTree, Megaphone, Save, Settings2, Users, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -9,14 +9,13 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { HandUnderline, cn } from "@/components/ui/primitives";
+import { cn } from "@/components/ui/primitives";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { t, withLocale, type Locale } from "@/lib/i18n";
 import { changeContentSelection } from "@/lib/content-selection";
-import { dashboardZoneChipClass } from "@/lib/dashboard-zones";
 import {
   contentStatus,
   contentStatusTone,
@@ -33,6 +32,15 @@ import { CoursePlayer } from "@/components/app/course-player";
 import { TrackExperience, type TrackExperienceData } from "@/components/app/track-experience";
 import { Spinner } from "@/components/ui/spinner";
 import { findCourse } from "@/lib/content";
+import { AdminAnalyticsView } from "@/components/igra/admin/admin-analytics";
+import { AdminControlHero } from "@/components/igra/admin/admin-control-hero";
+import { AdminHead } from "@/components/igra/admin/admin-head";
+import { AdminKpiRow } from "@/components/igra/admin/admin-kpi";
+import { IgraArt } from "@/components/igra/igra-art";
+import { IgraLik } from "@/components/igra/igra-lik";
+import type { IgraArtId } from "@/lib/igra-art";
+import { adminRobiMood, adminSignals, adminTodayKey } from "@/lib/igra-admin";
+import { IGRA_ADMIN_COPY } from "@/lib/igra-admin-copy";
 import type { Course, Lesson, LessonAsset, LessonPart } from "@/lib/content";
 
 type Status = "draft" | "published" | "archived";
@@ -248,17 +256,26 @@ function courseFromRows(course: CourseRow, lesson: LessonRow): Course {
   };
 }
 
-function AdminPageFrame({ locale, title, children }: { locale: Locale; title: string; children: ReactNode }) {
+function AdminPageFrame({
+  locale,
+  title,
+  art,
+  head,
+  children,
+}: {
+  locale: Locale;
+  title: string;
+  /** `admin.*` nalepnica uz naslov (K21). */
+  art: IgraArtId;
+  /** Zamena za zaglavlje: Kontrolna soba na strani Sadržaj nosi heroj sa istim naslovom. */
+  head?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="mx-auto max-w-[1500px] space-y-6">
-      <header>
-        <p className="type-eyebrow text-muted">{t(locale, "Administracija", "Administration")}</p>
-        {/* Svaka admin ruta nosi svoj naslov. Ranije su sve četiri pisale
-            "Kontrolni centar", pa se iz naslova nije videlo gde si (UX-BOOST-PLAN §3D). */}
-        <h1 className="mt-2 font-display type-display text-ink">{title}</h1>
-        {/* Isti skolski potpis kao ispod svakog zonskog naslova u aplikaciji. */}
-        <HandUnderline size="sm" className="mt-1" />
-      </header>
+      {/* Svaka admin ruta nosi svoj naslov. Ranije su sve četiri pisale
+          "Kontrolni centar", pa se iz naslova nije videlo gde si (UX-BOOST-PLAN §3D). */}
+      {head ?? <AdminHead art={art} eyebrow={t(locale, "Administracija", "Administration")} title={title} />}
       {children}
     </div>
   );
@@ -266,22 +283,22 @@ function AdminPageFrame({ locale, title, children }: { locale: Locale; title: st
 
 /** Linkovi ka admin modulima koji već rade, da prazna stranica ne bude ćorsokak. */
 function WorkingModuleLinks({ locale }: { locale: Locale }) {
-  const links: Array<{ href: string; icon: LucideIcon; label: string; body: string }> = [
+  const links: Array<{ href: string; art: IgraArtId; label: string; body: string }> = [
     {
       href: withLocale(locale, "/app/admin/content"),
-      icon: FileText,
+      art: "admin.sadrzaj",
       label: t(locale, "Sadržaj", "Content"),
       body: t(locale, "Smerovi, kursevi i lekcije - pravljenje, uređivanje i objava.", "Tracks, courses and lessons - create, edit and publish."),
     },
     {
       href: withLocale(locale, "/app/admin/chat"),
-      icon: Shield,
+      art: "admin.moderacija",
       label: t(locale, "Chat sigurnost", "Chat safety"),
       body: t(locale, "Prijave iz poruka i mere prema nalozima.", "Message reports and account actions."),
     },
     {
       href: withLocale(locale, "/app/admin/studio"),
-      icon: Wand2,
+      art: "admin.generacije",
       label: t(locale, "Crea admin", "Crea admin"),
       body: t(locale, "Modeli, cene i paketi kredita u Crei.", "Crea models, prices and credit packs."),
     },
@@ -299,9 +316,7 @@ function WorkingModuleLinks({ locale }: { locale: Locale }) {
               href={link.href}
               className="surface-card flex h-full items-start gap-3 border-2 border-ink bg-paper-strong p-4 transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
-                <link.icon aria-hidden="true" className="size-4" />
-              </span>
+              <IgraArt id={link.art} size="sm" decorative />
               <span className="min-w-0">
                 <span className="block text-sm font-black text-ink">{link.label}</span>
                 <span className="mt-1 block type-caption font-bold text-muted">{link.body}</span>
@@ -318,19 +333,26 @@ function WorkingModuleLinks({ locale }: { locale: Locale }) {
 function AdminModulePlaceholder({
   locale,
   title,
+  art,
   icon,
   emptyTitle,
   emptyBody,
+  children,
 }: {
   locale: Locale;
   title: string;
+  art: IgraArtId;
   icon: LucideIcon;
   emptyTitle: string;
   emptyBody: string;
+  /** Ono što već radi na ovoj strani, iznad dela „U pripremi" (Analitika, K21). */
+  children?: ReactNode;
 }) {
   return (
-    <AdminPageFrame locale={locale} title={title}>
-      <EmptyState icon={icon} title={emptyTitle} body={emptyBody} />
+    <AdminPageFrame locale={locale} title={title} art={art}>
+      {children}
+      {/* Bajt (lik za „sistem") čuva mesto: 120 px jer strana nema heroj (plan K20). */}
+      <EmptyState icon={icon} art={<IgraLik lik="bajt" poza="misli" size={120} decorative />} title={emptyTitle} body={emptyBody} />
       <WorkingModuleLinks locale={locale} />
     </AdminPageFrame>
   );
@@ -341,6 +363,7 @@ export function AdminUsersPanel({ locale }: { locale: Locale }) {
     <AdminModulePlaceholder
       locale={locale}
       icon={Users}
+      art="admin.korisnici"
       title={t(locale, "Korisnici", "Users")}
       emptyTitle={t(locale, "U pripremi", "Coming soon")}
       emptyBody={t(
@@ -357,6 +380,7 @@ export function AdminGrowthPanel({ locale }: { locale: Locale }) {
     <AdminModulePlaceholder
       locale={locale}
       icon={Megaphone}
+      art="admin.prihod"
       title={t(locale, "Rast", "Growth")}
       emptyTitle={t(locale, "U pripremi", "Coming soon")}
       emptyBody={t(
@@ -369,10 +393,18 @@ export function AdminGrowthPanel({ locale }: { locale: Locale }) {
 }
 
 export function AdminAnalyticsPanel({ locale }: { locale: Locale }) {
+  // Samo postojeći admin upiti (K21): ništa novo se ne broji, grafikoni crtaju ono što baza
+  // već zna. `now` je zamrznut kao u Crea adminu, jer upit ne sme sam da čita sat.
+  const [now] = useState(() => Date.now());
+  const overview = useQuery(api.adminOverview.getAdminOverview);
+  const usage = useQuery(api.studioAdmin.getUsageSummary, { now });
+  const passed = useQuery(api.studioAdmin.listPromptLog);
+  const refused = useQuery(api.studioAdmin.listModerationEvents);
   return (
     <AdminModulePlaceholder
       locale={locale}
       icon={BarChart3}
+      art="admin.sistem"
       title={t(locale, "Analitika", "Analytics")}
       emptyTitle={t(locale, "U pripremi", "Coming soon")}
       emptyBody={t(
@@ -380,57 +412,16 @@ export function AdminAnalyticsPanel({ locale }: { locale: Locale }) {
         "Ovde će biti posete, izvori saobraćaja i koliko posetilaca postane student, iz povezanog Google Analytics naloga. Broj studenata i stanje sadržaja već sada vidiš na vrhu stranice Sadržaj.",
         "This will show visits, traffic sources and how many visitors become students, from a connected Google Analytics account. Student and content counts are already at the top of the Content page.",
       )}
-    />
-  );
-}
-
-type StatusTally = { total: number; draft: number; published: number; archived: number };
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  tally,
-  hint,
-  locale,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  tally?: StatusTally;
-  hint?: string;
-  locale: Locale;
-}) {
-  return (
-    // Pregled stanja je isti sklop kao prozor komandne table (U11): skolska mreza
-    // ispod, plocica sa ikonom u akcentu zone, pa etiketa i brojka. Admin je
-    // "zona koja javlja stanje", pa plocica ide na papir - akcenat dolazi iz
-    // `lib/dashboard-zones.ts`, da se ne izmislja cetvrti izgled.
-    <article className="surface-card relative overflow-hidden border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-12)]">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
-      <div className="relative flex items-start gap-3">
-        <span
-          className={cn(
-            "grid size-10 shrink-0 place-items-center surface-inset border-2",
-            dashboardZoneChipClass("adminContent"),
-          )}
-        >
-          <Icon aria-hidden="true" className="size-5" />
-        </span>
-        <div className="min-w-0">
-          <p className="type-eyebrow text-muted">{label}</p>
-          <p className="mt-1 font-display type-display text-ink">{value}</p>
-        </div>
-      </div>
-      {tally ? (
-        <div className="relative mt-3 flex flex-wrap gap-1.5">
-          <Badge tone={statusTone.published} size="sm">{t(locale, "Objavljeno", "Published")} {tally.published}</Badge>
-          <Badge tone={statusTone.draft} size="sm">{t(locale, "Nacrt", "Draft")} {tally.draft}</Badge>
-          {tally.archived > 0 ? <Badge tone={statusTone.archived} size="sm">{t(locale, "Arhiva", "Archive")} {tally.archived}</Badge> : null}
-        </div>
-      ) : null}
-      {hint ? <p className="relative mt-3 type-caption font-bold text-muted">{hint}</p> : null}
-    </article>
+    >
+      <AdminAnalyticsView
+        locale={locale}
+        todayKey={adminTodayKey(now)}
+        overview={overview}
+        usage={usage}
+        passed={passed?.map((row) => row.createdAt)}
+        refused={refused?.map((row) => row.createdAt)}
+      />
+    </AdminModulePlaceholder>
   );
 }
 
@@ -535,6 +526,37 @@ function NavSection({
         {createLabel}
       </Button>
     </section>
+  );
+}
+
+/**
+ * Kontrolna soba (K21, plan K20 §2): heroj sa stanjem sistema i KPI red na vrhu strane
+ * Sadržaj. Svoje upite čita SAM, da promena današnjih poslova ne crta ponovo ceo urednik
+ * ispod. Svi upiti su postojeći; `getAdminOverview` i `getUserNotificationSummary({})` dele
+ * pretplatu sa urednikom i sidebarom.
+ */
+function AdminControlRoom({ locale, title, notice }: { locale: Locale; title: string; notice?: ReactNode }) {
+  const [now] = useState(() => Date.now());
+  const overview = useQuery(api.adminOverview.getAdminOverview);
+  const killSwitch = useQuery(api.studioAdmin.getKillSwitchState);
+  const usage = useQuery(api.studioAdmin.getUsageSummary, { now });
+  const notifications = useQuery(api.notifications.getUserNotificationSummary, {});
+  const signals = adminSignals(
+    { creaEnabled: killSwitch?.enabled, usage, pendingApprovals: notifications?.pendingApprovals, now },
+    locale,
+  );
+
+  return (
+    <>
+      <AdminControlHero locale={locale} title={title} signals={signals} mood={adminRobiMood(signals, locale)} />
+      {notice}
+      <section aria-labelledby="admin-platform-state" className="space-y-3">
+        <h2 id="admin-platform-state" className="type-eyebrow text-muted">
+          {IGRA_ADMIN_COPY.platformState[locale]}
+        </h2>
+        <AdminKpiRow locale={locale} overview={overview} pending={notifications?.pendingApprovals} />
+      </section>
+    </>
   );
 }
 
@@ -794,41 +816,34 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
   const hasSurface = Boolean(trackSurface || courseSurface || lessonSurface);
 
   return (
-    <AdminPageFrame locale={locale} title={t(locale, "Sadržaj", "Content")}>
-      {/* Baza nema kurseva -> student u Ucionici vidi staticni katalog iz lib/content.ts.
-          Ovaj banner vidi samo admin, sa tacnom komandom za seed. */}
-      {overview && overview.courses.total === 0 ? (
-        <Callout icon={Database} title={t(locale, "Baza nema kurseva", "The database has no courses")}>
-          {t(
-            locale,
-            "Studentima se prikazuje statični sadržaj. Pokreni ",
-            "Students are shown static content. Run ",
-          )}
-          <code className="surface-media border border-line bg-paper px-1.5 py-0.5 font-mono text-xs">
-            npm run convex:seed -- --prod
-          </code>
-          {t(locale, ".", ".")}
-        </Callout>
-      ) : null}
-
-      <section aria-labelledby="admin-platform-state" className="space-y-3">
-        <h2 id="admin-platform-state" className="type-eyebrow text-muted">
-          {t(locale, "Stanje platforme", "Platform state")}
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard locale={locale} icon={Layers} label={t(locale, "Smerovi", "Tracks")} value={overview ? String(overview.tracks.total) : "—"} tally={overview?.tracks} />
-          <StatCard locale={locale} icon={BookOpen} label={t(locale, "Kursevi", "Courses")} value={overview ? String(overview.courses.total) : "—"} tally={overview?.courses} />
-          <StatCard locale={locale} icon={ListTree} label={t(locale, "Lekcije", "Lessons")} value={overview ? String(overview.lessons.total) : "—"} tally={overview?.lessons} />
-          <StatCard
-            locale={locale}
-            icon={GraduationCap}
-            label={t(locale, "Studenti", "Students")}
-            value={overview ? `${overview.students.count}${overview.students.capped ? "+" : ""}` : "—"}
-            hint={t(locale, "Nalozi koji uče: studenti i pro studenti. Admini i moderatori se ne broje.", "Learner accounts: students and pro students. Admins and moderators are not counted.")}
-          />
-        </div>
-      </section>
-
+    <AdminPageFrame
+      locale={locale}
+      title={t(locale, "Sadržaj", "Content")}
+      art="admin.sadrzaj"
+      head={
+        <AdminControlRoom
+          locale={locale}
+          title={t(locale, "Sadržaj", "Content")}
+          // Baza nema kurseva -> student u Ucionici vidi staticni katalog iz lib/content.ts.
+          // Ovaj banner vidi samo admin, sa tacnom komandom za seed.
+          notice={
+            overview && overview.courses.total === 0 ? (
+              <Callout icon={Database} title={t(locale, "Baza nema kurseva", "The database has no courses")}>
+                {t(
+                  locale,
+                  "Studentima se prikazuje statični sadržaj. Pokreni ",
+                  "Students are shown static content. Run ",
+                )}
+                <code className="surface-media border border-line bg-paper px-1.5 py-0.5 font-mono text-xs">
+                  npm run convex:seed -- --prod
+                </code>
+                {t(locale, ".", ".")}
+              </Callout>
+            ) : null
+          }
+        />
+      }
+    >
       {message ? (
         <p role="status" className={cn("surface-inset border-2 px-3 py-2 type-body-sm font-black", message.tone === "success" ? "border-emerald-700 bg-emerald-50 text-emerald-800" : "border-red-700 bg-red-50 text-red-800")}>{message.text}</p>
       ) : null}

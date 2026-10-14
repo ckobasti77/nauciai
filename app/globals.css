@@ -481,6 +481,18 @@ body {
     rotate: -4deg;
     pointer-events: none;
   }
+
+  /* Šrafura u grafikonima admina (K21): „nacrt" i nepotpun dan. Mastilo na papiru, pa
+     radi u obe teme bez posebnog tokena, a razlikuje se od pune boje i bez boje (CVD, štampa). */
+  .igra-chart-hatch {
+    background-color: var(--paper);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--ink) 0 1.5px,
+      transparent 1.5px 5px
+    );
+    box-shadow: inset 0 0 0 1.5px var(--ink);
+  }
 }
 
 /* IGRA (K10): „sledeća" stanica na mapi puta otkuca tri puta kad se put iscrta

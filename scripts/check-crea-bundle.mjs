@@ -97,6 +97,11 @@ const INITIAL_GZ_BUDGET_KB = {
   "/[locale]/app/community/leaderboard/page": 303,
   "/[locale]/app/community/[postId]/page": 321,
   "/[locale]/app/members/[username]/page": 371,
+  // Admin (IGRA K21, plan K20 §6): izmereno posle K21 (content = analytics = users, isti modul
+  // `admin-content-manager.tsx`: 320,4; Crea admin 282,6) + ~5 KB, da sledeći koraci ne prerastu tiho.
+  "/[locale]/app/admin/content/page": 325,
+  "/[locale]/app/admin/analytics/page": 325,
+  "/[locale]/app/admin/studio/page": 288,
 };
 
 function fail(message) {

@@ -1073,3 +1073,82 @@ export const CREDITS_FIXTURES: Record<IgraFixtureId, CreditsFixture> = {
     transactions: [CREDITS_TX(4, "spend", -12, 4310, 0, true), CREDITS_TX(5, "purchase", 4800, 4322, 30, false)],
   },
 };
+
+/* ── Admin „Kontrolna soba" (K21) ─────────────────────────────────────────────────── */
+
+export type AdminFixture = {
+  overview: FunctionReturnType<typeof api.adminOverview.getAdminOverview>;
+  usage: FunctionReturnType<typeof api.studioAdmin.getUsageSummary>;
+  creaEnabled: boolean;
+  pendingApprovals: number;
+  now: number;
+  /** `createdAt` iz `studioAdmin.listPromptLog` (propušteni upiti, najnoviji prvi). */
+  passed: number[];
+  /** `createdAt` iz `studioAdmin.listModerationEvents` (odbijeni upiti). */
+  refused: number[];
+};
+
+const ADMIN_TALLY = (published: number, draft: number, archived = 0) => ({ total: published + draft + archived, published, draft, archived });
+
+/** Vremena zapisa po danu, od najstarijeg ka danas; današnji su pre `NOW` (09:30 u Beogradu). */
+function adminLogTimes(countsOldestFirst: readonly number[]): number[] {
+  const times: number[] = [];
+  countsOldestFirst.forEach((count, index) => {
+    const daysAgo = countsOldestFirst.length - 1 - index;
+    for (let i = 0; i < count; i += 1) {
+      times.push(daysAgo === 0 ? NOW - (i + 1) * 4 * 60_000 : NOW - daysAgo * DAY_MS + 4 * 3_600_000 - i * 3 * 60_000);
+    }
+  });
+  return times.sort((a, b) => b - a);
+}
+
+const ADMIN_USAGE = (
+  totalCostUsd: number,
+  jobCounts: [number, number, number, number, number, number],
+  heartbeatMinutesAgo: number | null,
+  extra: Partial<FunctionReturnType<typeof api.studioAdmin.getUsageSummary>> = {},
+): FunctionReturnType<typeof api.studioAdmin.getUsageSummary> => ({
+  day: IGRA_FIXTURE_TODAY,
+  totalCostUsd,
+  topUsers: [],
+  jobCounts: { reserved: jobCounts[0], running: jobCounts[1], done: jobCounts[2], failed: jobCounts[3], refunded: jobCounts[4], queued: jobCounts[5] },
+  reapedToday: 0,
+  alarmUsd: 50,
+  killUsd: 100,
+  usageRowsCapped: false,
+  jobCountsCapped: false,
+  costCapHeartbeatAt: heartbeatMinutesAgo === null ? null : NOW - heartbeatMinutesAgo * 60_000,
+  costCapCronFailure: null,
+  ...extra,
+});
+
+/** Prazna platforma; obična nedelja (3 objave čekaju); sve na granici (plafoni, alarm, čuvar kasni, Crea ugašena). */
+export const ADMIN_FIXTURES: Record<IgraFixtureId, AdminFixture> = {
+  novi: {
+    overview: { tracks: ADMIN_TALLY(0, 0), courses: ADMIN_TALLY(0, 0), lessons: ADMIN_TALLY(0, 0), students: { count: 0, capped: false } },
+    usage: ADMIN_USAGE(0, [0, 0, 0, 0, 0, 0], 12),
+    creaEnabled: true,
+    pendingApprovals: 0,
+    now: NOW,
+    passed: [],
+    refused: [],
+  },
+  aktivan: {
+    overview: { tracks: ADMIN_TALLY(3, 1), courses: ADMIN_TALLY(9, 2, 1), lessons: ADMIN_TALLY(80, 6), students: { count: 240, capped: false } },
+    usage: ADMIN_USAGE(12.4, [1, 2, 38, 3, 1, 4], 18),
+    creaEnabled: true,
+    pendingApprovals: 3,
+    now: NOW,
+    passed: adminLogTimes([3, 5, 2, 0, 6, 8, 4, 7, 9, 5, 3, 6, 10, 4]),
+    refused: adminLogTimes([0, 1, 0, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0]),
+  },
+  legenda: {
+    overview: { tracks: ADMIN_TALLY(6, 2, 1), courses: ADMIN_TALLY(31, 5, 4), lessons: ADMIN_TALLY(412, 37), students: { count: 2000, capped: true } },
+    usage: ADMIN_USAGE(62.35, [4, 9, 140, 12, 6, 30], 95, { jobCountsCapped: true }),
+    creaEnabled: false,
+    pendingApprovals: 100,
+    now: NOW,
+    passed: adminLogTimes([20, 50, 50, 50, 30]),
+    refused: adminLogTimes([1, 0, 2, 0, 3, 1, 0, 0, 2, 1, 0, 1, 0, 1]),
+  },
+};
