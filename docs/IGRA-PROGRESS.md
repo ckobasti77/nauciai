@@ -462,3 +462,6 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 - **Zatečeno, nisam dirao:** (a) uz „smanji pokrete" `SidebarNavSwap` crta drugačiji HTML nego server, pa React prijavi nepoklapanje hidratacije i ponovo iscrta sidebar; (b) u tamnoj temi inicijali u avataru sidebara su svetli na žutoj (boja se nasleđuje sa dugmeta).
 - **Ukus:** pečat u ljusci je broj u krugu mastila sa žutim prstenom (ODLUKA 1). Ako ipak hoćeš amblem `nivo.NN` u sidebaru, to je zamena jedne komponente (`LevelSeal` u `shell-progress.tsx`), uz jednu sliku više na svakoj strani.
 - **Dodir na pravom telefonu i pravi čitač ekrana nisam imao:** provereni su veličine meta, fokus i atributi.
+
+## K07 - Plan: kontrolna tabla i učionica   (2026-10-14 03:53)
+**Plan korak.** Plan je upisan u `docs/igra/planovi/K07.md`. Nije menjan kod.
