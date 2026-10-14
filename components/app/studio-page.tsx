@@ -1296,6 +1296,7 @@ export function StudioPage({
     ) : isToolsMode ? (
       <CreaToolStage
         locale={locale}
+        area={area}
         toolId={shell.tool ?? modeDef.defaultTool ?? null}
         guest={!isAuthenticated}
         signInHref={signInHrefProp ?? withLocale(locale, "/sign-in")}

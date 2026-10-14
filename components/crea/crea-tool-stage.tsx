@@ -5,17 +5,19 @@ import { useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 
 import { CreaInspiration } from "@/components/crea/inspiration/crea-inspiration";
-import { CreaLogo } from "@/components/crea/crea-logo";
 import { ToolBadges } from "@/components/crea/tool-badges";
 import { CreaToolIdContext } from "@/components/crea/game/crea-tool-context";
 import { CREA_TOOL_COMPONENTS } from "@/components/crea/tools";
 import type { CreaPaidContext, ToolSource } from "@/components/crea/tools/types";
 import { useCreaDeviceCaps } from "@/components/crea/use-crea-device";
+import { IgraLik } from "@/components/igra/igra-lik";
 import { LinkButton } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CREA_DEVICE_COPY, CREA_TOOL_COPY } from "@/lib/crea-copy";
+import type { CreaArea } from "@/lib/crea-shell";
 import { toolById } from "@/lib/crea-tools";
+import { creaLikForArea } from "@/lib/igra-crea";
 import type { Locale } from "@/lib/i18n";
 import { creaMotionFor } from "@/lib/motion-contract";
 
@@ -33,6 +35,7 @@ function StageNote({ children }: { children: ReactNode }) {
  */
 export function CreaToolStage({
   locale,
+  area,
   toolId,
   guest,
   signInHref,
@@ -43,6 +46,8 @@ export function CreaToolStage({
   list,
 }: {
   locale: Locale;
+  /** Oblast radionice: njen lik stoji u praznim stanjima (IGRA K15). */
+  area: CreaArea;
   toolId: string | null;
   guest: boolean;
   signInHref: string;
@@ -67,7 +72,7 @@ export function CreaToolStage({
   if (guest) {
     body = (
       <StageNote>
-        <CreaLogo variant="znak" className="mx-auto size-14" />
+        <IgraLik lik={creaLikForArea(area)} poza="mase" size="lg" decorative />
         <p className="mt-4 type-h3 text-ink">{CREA_TOOL_COPY.guestTitle[locale]}</p>
         <p className="mt-2 type-body-sm font-semibold text-muted">{CREA_TOOL_COPY.guestBody[locale]}</p>
         <LinkButton href={signInHref} tone="ink" className="mt-4">
@@ -78,7 +83,7 @@ export function CreaToolStage({
   } else if (!tool) {
     body = (
       <StageNote>
-        <CreaLogo variant="znak" className="mx-auto size-14" />
+        <IgraLik lik={creaLikForArea(area)} poza="misli" size="lg" decorative />
         <p className="mt-4 type-h3 text-ink">{CREA_TOOL_COPY.pickTitle[locale]}</p>
         <p className="mt-2 type-body-sm font-semibold text-muted">{CREA_TOOL_COPY.pickBody[locale]}</p>
       </StageNote>

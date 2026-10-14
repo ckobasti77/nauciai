@@ -5,8 +5,10 @@ import { useState, type ReactNode, type Ref } from "react";
 
 import { CREA_AREA_PANEL_ID, CreaAreaTabs } from "@/components/crea/crea-area-tabs";
 import { CREA_MODE_PANEL_ID, CreaModeTabs } from "@/components/crea/crea-mode-tabs";
+import { CreaAreaHeader } from "@/components/igra/crea/crea-area-header";
 import { cn } from "@/components/ui/primitives";
 import { CREA_AREAS, type CreaArea, type CreaModeId, type CreaShellState } from "@/lib/crea-shell";
+import { IGRA_CREA_COPY } from "@/lib/igra-copy";
 import type { Locale } from "@/lib/i18n";
 import { creaMotionFor, pageTurnDirection } from "@/lib/motion-contract";
 import { getStudioMotion } from "@/lib/studio-motion";
@@ -18,6 +20,9 @@ import { getStudioMotion } from "@/lib/studio-motion";
  * Crea nema.
  */
 export const CREA_DOCK_MIN_PX = 896;
+
+/** Savet lika u zaglavlju radionice (IGRA K15). */
+const AREA_HELP = { slika: IGRA_CREA_COPY.helpSlika, video: IGRA_CREA_COPY.helpVideo, zvuk: IGRA_CREA_COPY.helpZvuk } as const;
 
 /**
  * Jedna ljuska za tri radionice (U1, K03): veliki tabovi oblasti, tabovi režima i
@@ -121,6 +126,7 @@ export function CreaWorkshop({
       >
         {area !== null && mode !== null ? (
           <>
+            <CreaAreaHeader key={area} area={area} help={AREA_HELP[area][locale]} className="mb-3" />
             <CreaModeTabs locale={locale} area={area} mode={mode} onSelect={(next) => onNavigate({ mode: next })} />
             <div
               id={CREA_MODE_PANEL_ID}

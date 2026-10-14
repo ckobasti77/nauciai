@@ -183,6 +183,26 @@ export const IGRA_PROFILE_COPY = {
   close: { sr: "Zatvori", en: "Close" },
 } satisfies Record<string, LocalizedText>;
 
+/** Crea (K15): ulaz „Šta praviš danas?" i zaglavlja radionica sa likovima. */
+export const IGRA_CREA_COPY = {
+  tilesLabel: { sr: "Izaberi radionicu", en: "Pick a workshop" },
+  tileSubSlika: { sr: "sa Piksijem", en: "with Piksi" },
+  tileSubVideo: { sr: "sa Kadrom", en: "with Kadar" },
+  tileSubZvuk: { sr: "sa Ehom", en: "with Eho" },
+  helpSlika: {
+    sr: "Opiši šta vidiš: ko, gde i kakvo je svetlo. Ja crtam.",
+    en: "Describe what you see: who, where and what the light is like. I'll draw it.",
+  },
+  helpVideo: {
+    sr: "Reci šta se pomera i kuda ide kamera. Kratko je najbolje.",
+    en: "Say what moves and where the camera goes. Short works best.",
+  },
+  helpZvuk: {
+    sr: "Napiši tekst ili opiši zvuk, a ja ga pretvaram u glas ili muziku.",
+    en: "Write the text or describe the sound and I'll turn it into a voice or music.",
+  },
+} satisfies Record<string, LocalizedText>;
+
 export const IGRA_LESSON_FORMS: Record<Locale, PluralForms> = {
   sr: { one: "lekcija", few: "lekcije", many: "lekcija" },
   en: { one: "lesson", few: "lessons", many: "lessons" },

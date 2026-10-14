@@ -25,11 +25,16 @@ export function IgraHero({
   children,
   aside,
   className,
+  greetingAs: Greeting = "p",
+  greetingId,
 }: {
   art: IgraArtId;
   locale: Locale;
   /** Rukopisni pozdrav; na telefonu stoji preko praznog dela scene. */
   greeting: ReactNode;
+  /** Kad je pozdrav ujedno naslov strane (Crea ulaz, K15): `h2` umesto `p`. */
+  greetingAs?: "p" | "h2";
+  greetingId?: string;
   children: ReactNode;
   /** Sloj preko scene (npr. 3D maskota na računaru). */
   aside?: ReactNode;
@@ -55,7 +60,9 @@ export function IgraHero({
       {aside}
       <div data-motion="copy" className="relative lg:w-[52%] lg:p-8">
         <div className="flex h-52 items-center px-5 sm:h-60 sm:px-6 lg:h-auto lg:px-0">
-          <p className="max-w-[46%] break-words font-display type-display-sm text-ink lg:max-w-none">{greeting}</p>
+          <Greeting id={greetingId} className="max-w-[46%] break-words font-display type-display-sm text-ink lg:max-w-none">
+            {greeting}
+          </Greeting>
         </div>
         <div className="px-5 pb-5 sm:px-6 sm:pb-6 lg:mt-4 lg:px-0 lg:pb-0">{children}</div>
       </div>

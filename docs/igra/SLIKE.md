@@ -149,6 +149,9 @@ Kad ti treba slika koje nema ovde, upiši je u `docs/IGRA-PROGRESS.md` pod „TR
 | `prazno.offline` | Nema interneta | `/brand/igra/prazno/offline.avif` |
 | `prazno.zakljucano` | Zaključano | `/brand/igra/prazno/zakljucano.avif` |
 | `prazno.uskoro` | Stiže uskoro | `/brand/igra/prazno/uskoro.avif` |
+| `prazno.galerija` | Galerija čeka prvi rad (Piksi kači prvi ram) | `/brand/igra/prazno/galerija.avif` |
+| `prazno.izazov` | Izazov čeka prve radove (Kadar sa klapom pored praznog platna) | `/brand/igra/prazno/izazov.avif` |
+| `prazno.par` | Još nema para (Iskra iznad dva stočića) | `/brand/igra/prazno/par.avif` |
 
 ## Admin ikone (nalepnice, 512×512)
 

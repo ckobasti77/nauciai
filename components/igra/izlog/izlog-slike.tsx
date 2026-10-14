@@ -133,10 +133,10 @@ export function IzlogSlike({ locale }: { locale: Locale }) {
             <Caption>bedz.niz-7 · locked</Caption>
           </li>
           <li className="w-24">
-            <IgraArt id="lik.piksi.radi" size="lg" locale={locale} />
+            <IgraArt id="prazno.galerija" size="lg" locale={locale} />
             <Caption>
-              lik.piksi.radi
-              {igraArtRenderable(igraArt("lik.piksi.radi")) ? null : ` · ${t(locale, "planirana", "planned")}`}
+              prazno.galerija
+              {igraArtRenderable(igraArt("prazno.galerija")) ? null : ` · ${t(locale, "planirana", "planned")}`}
             </Caption>
           </li>
           <li className="w-60">

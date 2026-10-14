@@ -8,9 +8,9 @@ import { useEffect, useState } from "react";
 import { StudioMediaSkeletonTile, StudioMediaTile, type StudioTileJob } from "@/components/app/studio-media-tile";
 import { CreaInspiration } from "@/components/crea/inspiration/crea-inspiration";
 import type { QuickActionLink } from "@/components/crea/quick-actions-menu";
-import { CreaLogo } from "@/components/crea/crea-logo";
 import { fireConfetti } from "@/components/crea/reveal/fire-confetti";
 import { StageCompanion } from "@/components/crea/wait/stage-companion";
+import { IgraLik } from "@/components/igra/igra-lik";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { CreaMoment } from "@/convex/creaMomentsCore";
@@ -18,6 +18,7 @@ import { CREA_STAGE_COPY } from "@/lib/crea-copy";
 import { CREA_MASCOT_MOOD_MS, mascotLine, mascotMoodFor } from "@/lib/crea-mascot";
 import { momentMessage } from "@/lib/crea-reveal";
 import type { CreaArea, CreaModeDef } from "@/lib/crea-shell";
+import { creaLikForArea } from "@/lib/igra-crea";
 import { isWaitingStatus } from "@/lib/crea-wait";
 import type { Locale } from "@/lib/i18n";
 import { creaMotionFor } from "@/lib/motion-contract";
@@ -149,7 +150,7 @@ export function CreaStage({
       ) : (
         <div className="surface-card grid min-h-[280px] place-items-center border-2 border-dashed border-line bg-paper/70 px-6 py-10 text-center">
           <div className="max-w-sm">
-            <CreaLogo variant="znak" className="mx-auto size-14" />
+            <IgraLik lik={creaLikForArea(area)} poza="misli" size="lg" decorative />
             <p className="mt-4 type-h3 text-ink">{CREA_STAGE_COPY.emptyTitle[locale]}</p>
             <p className="mt-2 type-body-sm font-semibold text-muted">{mode.blurb[locale]}</p>
             <p className="mt-3 type-body-sm font-bold text-ink">

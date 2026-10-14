@@ -1066,3 +1066,82 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 
 ## K14 - Plan: Crea   (2026-10-14 08:38)
 **Plan korak.** Plan je upisan u `docs/igra/planovi/K14.md`. Nije menjan kod.
+
+## SLIKE — TRAŽENE SLIKE (K14) su gotove (Claude, 2026-10-14 09:06)
+- `prazno.galerija`, `prazno.izazov`, `prazno.par` su napravljene i u manifestu su `ready: true` (123/123). Runner ih kopira u `public/brand/igra/` pre sledećeg koraka, pa K17 crta prave slike umesto zamena iz K14 ODLUKE 16. Ako je K15 dodao ova tri ID-ja u `IGRA_PLANNED_ART`, prvi korak koji dira `lib/igra-art.ts` ih uklanja (manifest ih već ima).
+
+### ODLUKE K14 (plan Crea; prepisao K15, pun tekst u `docs/igra/planovi/K14.md`)
+1. Likovi i ilustracije važe na obe rute radionice (`/app/studio` i `/crea/app`, i za goste); napredak, XP i slavlja samo za prijavljene. `/crea` landing se ne dira.
+2. Mapa oblast → lik je jedna konstanta `CREA_AREA_LIK` (`lib/igra-crea.ts`); `CreaQuickStart` (K08) je prešao na nju.
+3. Poza „radi" se ne dodaje u `IGRA_POZE`; `lib/igra-crea.ts` drži literalne ID-jeve `lik.piksi|kadar|eho.radi`.
+4. Ulaz nema drugi red napretka: pečat nivoa i plamen su u postojećoj `CreaGameStrip`.
+5. Nivo u Crei je uvek `levelFromXp(game.xp)`, nikad `game.level` (stari obračun 500 / nivo). `convex/creaGame.ts` se ne menja.
+6. „Prvi rad svake vrste": mini slavlje iz postojećeg `momentForJob` (bez upisa) + bedž `prvi-rad|prvi-video|prvi-zvuk` kroz `CelebrationHost` i `igraSeen` (K16).
+7. Mini slavlje je u oblačiću `StageCompanion`, ne preklop (K16).
+8. XP odometar posle SVAKOG rada kod kog je XP porastao, meren od početka do 8 s posle kraja rada (K16).
+9. `IgraProgressProvider` u `StudioShell` samo za prijavljene i uz Convex (K16).
+10. Domaćin slavlja čeka i `[data-igra-busy]` (tost albuma, `CreaStreakBurst`) (K16).
+11. Postojeća 3D maskota je Robi; jedina 3D figura u Crei; Piksi, Kadar i Eho su samo 2D nalepnice.
+12. Prazna stanja Cree idu kroz postojeći `EmptyState` sa `art` (K17); ilustracija 120 px bez heroja, 96 px uz heroja.
+13. Lik „radi" samo u velikom prikazu čekanja (`size="stage"`) (K16).
+14. Animacija „radi" je CSS `.igra-lik-radi` u `no-preference` bloku; staje za noćni posao (K16).
+15. Galerija, izazov, sveska i parovi nemaju scenu-heroja; nalepnica 64 px u zaglavlju (K17).
+16. Tri nove slike su tražene (dole) i upisane u `IGRA_PLANNED_ART`; tri zastarela reda `*.radi` su obrisana (manifest ih ima).
+
+### TRAŽENE SLIKE (K14)
+- prazno.galerija | Prazan zid izložbe sa tri prazna rama; Piksi na merdevinama kači prvi ram, veseo i pun nade | nalepnica | Crea galerija bez objavljenih radova (K17)
+- prazno.izazov | Štafelaj sa praznim platnom i mali pehar pored; Kadar drži klapu i čeka, strpljiv osmeh | nalepnica | Crea izazov, glasanje bez radova (K17)
+- prazno.par | Dva stočića sa skicama, jedna stolica prazna; Iskra iznad pali sijalicu kao poziv | nalepnica | Crea parovi, još nema para (K17)
+
+## K15 — Crea ulaz i radionice   (2026-10-14 09:05)
+**Fajlovi:**
+- novi: `lib/igra-crea.ts`, `lib/igra-crea.test.ts`, `components/igra/crea/crea-start-hero.tsx`, `components/igra/crea/crea-area-header.tsx`, `components/igra/izlog/izlog-crea.tsx`, `docs/igra/snimci/K15-*.png` (10)
+- izmenjeni (Crea): `components/crea/crea-start-screen.tsx`, `components/crea/crea-workshop.tsx`, `components/crea/crea-stage.tsx`, `components/crea/crea-tool-stage.tsx` (nov prop `area`), `components/app/studio-page.tsx` (samo `area={area}` za `CreaToolStage`), `components/crea/game/crea-game-strip.tsx`
+- izmenjeni (IGRA): `components/igra/igra-hero.tsx` (opcioni `greetingAs` / `greetingId`), `components/igra/dashboard/crea-quick-start.tsx` (mapa iz `CREA_AREA_LIK`), `lib/igra-copy.ts` (`IGRA_CREA_COPY`), `lib/igra-art.ts` (planirane slike), `lib/igra-fixtures.ts` (`CREA_GAME_FIXTURES`), `components/igra/izlog/registry.ts`, `components/igra/izlog/izlog-slike.tsx` (uzorak planirane slike), `lib/igra-izlog.test.ts` (deo „crea")
+
+**Šta je urađeno:** Ulaz u Creu „Šta praviš danas?" je sada heroj sa scenom `scena.crea-radionica` (scena desno, naslov levo; na telefonu traka sa scenom gore) i tri velika ulaza u radionice, svaki sa svojim likom: Piksi slika, Kadar video, Eho zvuk. Pločica je pravi link (`creaShellQuery({ area, mode: null })`), pa ulaz u radionicu briše stari cilj, alat, recept i model, isto kao pilule oblasti. Ispod heroja su postojeće kartice ciljeva i recepti, nepromenjeni; rečenica „Izaberi cilj…" je sada uvod u ciljeve. Svaka radionica ima zaglavlje između pilula oblasti i režima: lik oblasti (40 px na telefonu, 64 px od `sm`) sa kratkim savetom u oblačiću. Prazna pozornica i prazni koraci alata (gost, „izaberi alat") umesto znaka Cree imaju lika oblasti (`misli` / `mase`, 96 px). Traka napretka u gornjem redu radionice počinje pečatom nivoa iz ljuske (broj u krugu + prsten napretka), računatim iz istog XP-a istim pravilom kao ljuska. Izlog ima deo „Crea" (`/igra-izlog?deo=crea&stanje=novi|aktivan|legenda`) sa PRAVOM radionicom uživo (pilule, pločice likova i kartice ciljeva menjaju oblast u izlogu), zaglavljima sve tri radionice i trakom za tri test korisnika.
+
+**Površine:**
+- gotovo: Crea ulaz (heroj, tri radionice, obe teme, 390 px), zaglavlja radionica sa likovima, prazne pozornice (režimi sa modelima i sa alatima), traka napretka sa nivoom.
+- nije u ovom koraku (po planu K14): čekanje, rezultat i slavlja (K16); biblioteka, galerija, izazovi, parovi, sveska (K17). `CreaComingSoon` i `CreaHistoryEmpty` nisu dirani (plan K14 §2.2).
+
+**ODLUKE:**
+1. **Nivo u traci je pečat iz ljuske (`LevelSeal` iz `shell-progress.tsx`), ne amblem `nivo.NN`** (plan je dozvoljavao oba): „isti izvor kao ljuska" i bez još jedne slike u gornjem redu. Računa se iz `game.xp` (isti `leaderboardStats` XP koji čita `igra:getMyProgress`), jer na `/crea/app` još nema IGRA provider-a (K16); `game.level` se ne prikazuje. Pečat je vidljiv i na telefonu (28 px).
+2. **Prazno stanje „alat stiže uskoro" nije dobilo sliku:** u kodu tu nije bilo znaka Cree koji plan menja (plan je pretpostavio da jeste), a nijedan alat danas nije „uskoro". Hirurški: ništa nije dodato.
+3. **Rečenica `CREA_START_COPY.body` („Izaberi cilj…") je premeštena ispod heroja**, kao uvod u kartice ciljeva, jer govori o ciljevima, a ne o pločicama radionica. U heroju iznad pločica stoji „Izaberi radionicu".
+4. **Pločice su lik od 72 px + naziv + „sa Piksijem"**, visoke 145 px; na 390 px u pravoj radionici široke oko 100 px (plan je naveo ≥ 104 px; razlika su unutrašnje margine heroja). Meta je daleko iznad 44 px.
+5. **Zaglavlje oblasti ima dve instance lika (telefon / od `sm`) u omotačima koji nose prikaz.** `hidden` na samom `IgraLik`-u bi izgubio od njegovog `inline-flex` (Tailwind redosled, poznat problem u repou).
+6. **Izlog ne crta `CreaToolStage`**: alati vuku `vectortracer` WASM, koji `next dev --webpack` ne ume da učita (strana bi pala sa 500). Režim sa alatima u izlogu crta praznu pozornicu; prazna stanja alata su provereni testom nad izvorom i typecheck-om.
+7. **Bundle (`check:bundle` prolazi, ali preko cilja K14 od +10 KB):** `/crea/app` 465 → **485 KB** gz (budžet 512), `/app/studio` 542–546 → **553 KB** (budžet 595), `/app` 291 → 292 (294). Ceo rast je zajednički sloj slika IGRA-e koji Crea do sada nije učitavala: `IgraArt` + manifest (~3,3 KB gz) + mapa od 38 lucide fallback ikona + pečat ljuske. To je jednokratna cena: K16/K17 koriste iste module, pa treba da dodaju još najviše oko 5 KB. Bez ovoga Crea ne može da ima nijednu IGRA sliku. Budžeti ruta nisu dirani. Predlog za K28: `IgraFallbackIcon` učitavati lenjo (fallback se crta samo kad slike nema), što bi skinulo nekoliko KB sa svake rute koja crta `IgraArt`.
+8. **Scena ulaza nije u SSR HTML-u:** u produkcionom buildu (`next start`) `/crea/app` server crta gornju traku, a radionicu tek klijent (zatečeno ponašanje `StudioPage`). `priority` (eager + `fetchPriority="high"`) je zadržan, jer je scena najveća slika prvog kadra kad se radionica nacrta.
+9. **`lib/igra-crea.ts` ne uvozi `lib/crea-shell` ni manifest u vreme izvršavanja** (samo tipove): `CreaQuickStart` ga uvozi, a `/app` je na 292 / 294 KB. Test to čuva.
+10. Uzorak „planirane slike" u izlogu (deo „slike") sada je `prazno.galerija` (`lik.piksi.radi` je stigao u manifest).
+
+**Novi paketi:** nema.
+
+**Testovi:**
+- novi `lib/igra-crea.test.ts` (13): mapa oblast → lik i vrsta posla → lik; sve poze koje Crea koristi (`mase`, `misli`, `slavi`, `radi`) i `scena.crea-radionica` su u manifestu i spremne; modul bez manifesta i bez `crea-shell` u vreme izvršavanja; tekstovi sr/en, različiti, bez pretnje i bez priče o ceni; href pločice briše cilj, alat, recept i model a čuva projekat; ulaz crta heroja sa `h2#crea-start-title`; u celoj radionici tačno jedan `IgraHero` i nijedan drugi `priority`; `components/igra/crea/*` prezentacioni (bez upita, `<img>`, hex-a, forsiranog radijusa i `border-2`); zaglavlje stoji između pilula oblasti i režima; prazne pozornice nose lika oblasti; traka računa nivo iz XP-a (`levelFromXp`), nikad `game.level` (test korisnik „aktivan": 1.890 XP = nivo 5, stari obračun bi rekao 4).
+- izmenjen `lib/igra-izlog.test.ts`: spisak delova ima „crea".
+
+**Slike:** `scena.crea-radionica` (heroj ulaza, jedini `priority`), `lik.piksi|kadar|eho.mase|misli` (pločice, zaglavlja, prazne pozornice). `lik.*.radi` su u `CREA_RADI_ART` za K16. TRAŽENE SLIKE: tri iz K14 (gore), upisane u `IGRA_PLANNED_ART`.
+
+**Rezultat provere:**
+- codegen: nije potreban (`convex/` nije diran)
+- typecheck: prošlo
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (313 fajlova, 3.524 testa)
+- check:frames, check:corners, check:white: prošlo; check:igra `--strict`: 0 za popravku, 1 upozorenje (planirana `prazno.galerija` u izlogu)
+- build: prošao iz prvog pokušaja; `next start` (port 3124): `/crea/app` 200, `/igra-izlog?deo=crea` 404
+- check:bundle: prošlo (brojevi u ODLUCI 7)
+- **pregledač (Playwright, izlog, 1440 × 900 i 390 × 844, obe teme), izmereno:** jedno `data-igra-hero`, naslov `h2#crea-start-title`; pločice 138 × 145 px (1440) i 91 × 145 px (390, izlog ima dodatnu marginu); nema vodoravnog skrola; 0 slomljenih slika; kontrast u heroju u tamnoj temi (svetlo ostrvo): naslov 12,6:1, „sa Piksijem" i „Izaberi radionicu" oko 5,7:1; naziv trake počinje sa „Nivo 5: Graditelj", traka 298 × 44 px; klik na pločicu i pilule menja radionicu, zaglavlje i lika prazne pozornice; konzola bez grešaka i upozorenja (i uz smanjen pokret). Snimci: `K15-crea-ulaz-1440|390-svetla|tamna`, `K15-crea-radionica-1440|390-svetla|tamna`, `K15-crea-zaglavlja-1440-svetla`, `K15-crea-traka-1440-svetla`.
+- dev server i `next start` su ugašeni (portovi 3123 / 3124 slobodni); Playwright `page-*.yml` i `console-*.log` su obrisani.
+
+- **prava radionica (produkcioni build, `next start -p 3124`, `/crea/app` kao gost), izmereno:** heroj se crta (jedno `data-igra-hero`, scena `crea-radionica.avif` učitana sa `fetchpriority="high"`), pločice vode na `/crea/app?oblast=slika|video|zvuk` (145 × 145 px na 1440, 99 × 145 px na 390); klik na „Video" otvara radionicu sa Kadrovim zaglavljem i savetom, levim panelom i Kadrom (`misli`) u praznoj pozornici; `?oblast=slika&rezim=alati` kao gost crta Piksija (`mase`) u praznom stanju „Prijavi se i koristi besplatne alate"; 0 slomljenih slika, bez vodoravnog skrola, konzola bez grešaka. Snimci: `K15-crea-prava-ulaz-1440-svetla`, `K15-crea-prava-radionica-1440-tamna`, `K15-crea-prava-ulaz-390-svetla`, `K15-crea-prava-alati-390-tamna`. Server je posle ugašen.
+
+**BLOKADA (samo provera, ne kod):** prijavljeni deo radionice (`/app/studio` i traka napretka sa pečatom nivoa, koju gost ne vidi) nije gledan u pregledaču: Playwright nije prijavljen (isto kao K06–K13), a prijava ide kroz auth tok koji se ne dira. Isti `StudioPage` je proveren kao gost na `/crea/app` (gore), a traka u izlogu nad test podacima. `next dev --webpack` na ovoj mašini vraća 500 za radionicu zbog `vectortracer` WASM-a (zatečeno), pa je prava ruta gledana na produkcionom buildu.
+
+**Za Jovana ujutru:**
+- **Otvori `/app/studio` prijavljen** (`/crea/app` kao gost je proveren na produkcionom buildu): heroj sa scenom i tri lika, klik na lika vodi u radionicu, zaglavlje sa savetom iznad režima, lik u praznoj pozornici, pečat nivoa na početku trake (mora da se slaže sa nivoom u sidebaru).
+- **Bundle Cree +20 KB** (ODLUKA 7): u budžetu rute, ali preko cilja K14. Ako ti je to previše, najjeftinija ušteda za sve rute je lenja mapa fallback ikona u `IgraArt` (K28).
+- **Ukus:** saveti likova u `IGRA_CREA_COPY` (`lib/igra-copy.ts`), veličina likova u pločicama (72 px), i da li „Izaberi radionicu" iznad pločica treba. Snimci: `K15-crea-ulaz-1440-svetla.png`, `K15-crea-radionica-1440-tamna.png`, `K15-crea-ulaz-390-svetla.png`.
+- **Zatečeno, nisam dirao:** naziv trake za čitač ekrana ima dve tačke („Danas je upisano..") jer `CREA_STREAK_COPY.done` već završava tačkom.

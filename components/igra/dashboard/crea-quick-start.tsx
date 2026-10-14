@@ -4,13 +4,14 @@ import { IgraLik } from "@/components/igra/igra-lik";
 import { cn } from "@/components/ui/primitives";
 import type { IgraLik as IgraLikName } from "@/lib/igra-art";
 import { IGRA_DASHBOARD_COPY } from "@/lib/igra-copy";
+import { CREA_AREA_LIK } from "@/lib/igra-crea";
 import { withLocale, type Locale, type LocalizedText } from "@/lib/i18n";
 
 /** Oblast Cree u adresi (`?oblast=`), isto kao u sidebaru (`lib/sidebar-contexts.ts`). */
 const AREAS: ReadonlyArray<{ area: string; lik: IgraLikName; label: LocalizedText }> = [
-  { area: "slika", lik: "piksi", label: IGRA_DASHBOARD_COPY.creaImage },
-  { area: "video", lik: "kadar", label: IGRA_DASHBOARD_COPY.creaVideo },
-  { area: "zvuk", lik: "eho", label: IGRA_DASHBOARD_COPY.creaSound },
+  { area: "slika", lik: CREA_AREA_LIK.slika, label: IGRA_DASHBOARD_COPY.creaImage },
+  { area: "video", lik: CREA_AREA_LIK.video, label: IGRA_DASHBOARD_COPY.creaVideo },
+  { area: "zvuk", lik: CREA_AREA_LIK.zvuk, label: IGRA_DASHBOARD_COPY.creaSound },
 ];
 
 /**

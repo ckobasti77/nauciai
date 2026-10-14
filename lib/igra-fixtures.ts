@@ -6,6 +6,7 @@ import type { DashboardCourse } from "../components/app/dashboard-content";
 import type { Id } from "../convex/_generated/dataModel";
 import { courses as staticCourses } from "./content";
 import type { CatalogTrackMeta } from "./course-catalog";
+import { CREA_ALBUM_STICKER_COUNT } from "./crea-album";
 import { computeStreak, shiftDayKey, type StreakDay } from "./crea-streak";
 import type { IgraLik, IgraPoza } from "./igra-art";
 import { EMPTY_BADGE_COUNTERS, evaluateBadges, igraBadge, type IgraBadgeCounters, type IgraBadgeKey } from "./igra-badges";
@@ -845,3 +846,29 @@ export function memberProgressFixture(stanje: IgraFixtureId, opts: { creaPublic:
     }),
   };
 }
+
+// ── Crea (K15) ───────────────────────────────────────────────────────────────
+
+export type CreaGameFixture = NonNullable<FunctionReturnType<typeof api.creaGame.myGame>>;
+
+function creaGame(stanje: IgraFixtureId, owned: number): CreaGameFixture {
+  const progress = IGRA_FIXTURES[stanje];
+  return {
+    xp: progress.xp,
+    // Stari obračun sa servera (500 XP po nivou): traka ga NE prikazuje, nivo računa iz XP-a.
+    level: Math.floor(progress.xp / 500) + 1,
+    streak: progress.streak,
+    album: { owned, total: CREA_ALBUM_STICKER_COUNT },
+    unlock: { auto: false, chosen: false, lessons: [] },
+    freeTries: [],
+    reportCardPublic: false,
+    username: progress.username,
+  };
+}
+
+/** `creaGame:myGame` za tri test korisnika: isti XP i niz kao `IGRA_FIXTURES`. */
+export const CREA_GAME_FIXTURES: Record<IgraFixtureId, CreaGameFixture> = {
+  novi: creaGame("novi", 0),
+  aktivan: creaGame("aktivan", 23),
+  legenda: creaGame("legenda", CREA_ALBUM_STICKER_COUNT - 4),
+};

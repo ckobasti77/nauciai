@@ -6,15 +6,23 @@ import Link from "next/link";
 
 import { CREA_ICONS } from "@/components/crea/crea-icons";
 import { CreaRecipeCards } from "@/components/crea/recipes/recipe-cards";
+import { CreaStartHero } from "@/components/igra/crea/crea-start-hero";
 import { CREA_SHELL_COPY, CREA_START_COPY } from "@/lib/crea-copy";
 import { CREA_GOALS, goalHref } from "@/lib/crea-goals";
-import { CREA_AREA_META, creaModeDef } from "@/lib/crea-shell";
+import { CREA_AREA_META, CREA_AREAS, creaModeDef, creaShellQuery } from "@/lib/crea-shell";
 import { toolById } from "@/lib/crea-tools";
+import { IGRA_CREA_COPY } from "@/lib/igra-copy";
 import type { Locale } from "@/lib/i18n";
 import { creaMotionFor } from "@/lib/motion-contract";
 
+const TILE_SUB = {
+  slika: IGRA_CREA_COPY.tileSubSlika,
+  video: IGRA_CREA_COPY.tileSubVideo,
+  zvuk: IGRA_CREA_COPY.tileSubZvuk,
+} as const;
+
 /**
- * „Šta praviš danas?" (U2): kartice po cilju (kartice za sliku vode u recepte, K15),
+ * „Šta praviš danas?" (U2): heroj sa tri radionice i njihovim likovima (IGRA K15), kartice po cilju (kartice za sliku vode u recepte, K15),
  * pa svi recepti po grupama. Svaka je pravi link (deljiv, otvara
  * se i u novom tabu) koji vodi u oblast i režim sa popunjenim opisom i
  * preporučenim modelom. Na telefonu mreža 2 × N.
@@ -30,15 +38,19 @@ export function CreaStartScreen({
 }) {
   const reduceMotion = useReducedMotion();
   const crea = creaMotionFor(Boolean(reduceMotion));
+  const tiles = CREA_AREAS.map((area) => ({
+    area,
+    href: `${pathname}?${creaShellQuery({ area, mode: null }, searchParams)}`,
+    label: CREA_AREA_META[area].label[locale],
+    sub: TILE_SUB[area][locale],
+  }));
 
   return (
     <section aria-labelledby="crea-start-title" className="min-w-0">
-      <h2 id="crea-start-title" className="font-display type-display-sm text-ink">
-        {CREA_START_COPY.title[locale]}
-      </h2>
-      <p className="mt-1 max-w-2xl type-body-sm font-semibold text-muted">{CREA_START_COPY.body[locale]}</p>
+      <CreaStartHero locale={locale} title={CREA_START_COPY.title[locale]} titleId="crea-start-title" tiles={tiles} />
+      <p className="mt-6 max-w-2xl type-body-sm font-semibold text-muted">{CREA_START_COPY.body[locale]}</p>
 
-      <ul className="mt-5 grid grid-cols-2 gap-3 @min-[640px]:grid-cols-3 @min-[1000px]:grid-cols-4 sm:gap-4">
+      <ul className="mt-4 grid grid-cols-2 gap-3 @min-[640px]:grid-cols-3 @min-[1000px]:grid-cols-4 sm:gap-4">
         {CREA_GOALS.map((goal, index) => {
           const Icon = CREA_ICONS[goal.icon];
           const AreaIcon = CREA_ICONS[CREA_AREA_META[goal.area].icon];
