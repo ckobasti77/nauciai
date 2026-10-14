@@ -1,10 +1,6 @@
-import {
-  DashboardContent,
-  DashboardHome,
-  type DashboardCourse,
-} from "@/components/app/dashboard-content";
+import { DashboardContent, type DashboardCourse } from "@/components/app/dashboard-content";
 import { LiveStudentDashboard } from "@/components/app/dashboard-live";
-import { courses, findCourse, primaryCourseSlug, studentProfile } from "@/lib/content";
+import { courses, findCourse, studentProfile } from "@/lib/content";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import type { Locale } from "@/lib/i18n";
 
@@ -37,8 +33,8 @@ function staticDashboardCourseFromContent(course: (typeof courses)[number], sort
   };
 }
 
-function staticDashboardCourse(courseSlug?: string): DashboardCourse {
-  const course = findCourse(courseSlug ?? primaryCourseSlug);
+function staticDashboardCourse(courseSlug: string): DashboardCourse {
+  const course = findCourse(courseSlug);
   const courseIndex = Math.max(0, courses.findIndex((item) => item.slug === course.slug));
   return staticDashboardCourseFromContent(course, courseIndex * 10);
 }
@@ -47,6 +43,8 @@ export function staticDashboardCourses(): DashboardCourse[] {
   return courses.map((course, index) => staticDashboardCourseFromContent(course, index * 10));
 }
 
+// Stranica kursa. Komandnu tablu (`/app`) sklapa `app/[locale]/app/page.tsx` iz
+// `components/app/dashboard-home.tsx`.
 export function StudentDashboard({
   locale,
   profile,
@@ -55,11 +53,10 @@ export function StudentDashboard({
 }: {
   locale: Locale;
   profile?: ViewerProfile;
-  courseSlug?: string;
+  courseSlug: string;
   hasConvex?: boolean;
 }) {
   const fallbackCourse = staticDashboardCourse(courseSlug);
-  const fallbackCourses = staticDashboardCourses();
   const resolvedProfile = profile ?? studentProfile;
 
   if (hasConvex) {
@@ -69,18 +66,7 @@ export function StudentDashboard({
         profile={resolvedProfile}
         courseSlug={courseSlug}
         fallbackCourse={fallbackCourse}
-        fallbackCourses={fallbackCourses}
-      />
-    );
-  }
-
-  if (!courseSlug) {
-    return (
-      <DashboardHome
-        locale={locale}
-        profile={resolvedProfile}
-        overview={null}
-        staticCourses={fallbackCourses}
+        fallbackCourses={staticDashboardCourses()}
       />
     );
   }

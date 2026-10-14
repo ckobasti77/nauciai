@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 
-import { StudentDashboard } from "@/components/app/dashboard";
+import { staticDashboardCourses } from "@/components/app/dashboard";
+import { DashboardHome, LiveDashboardHome } from "@/components/app/dashboard-home";
 import { legacyCourseRedirect } from "@/lib/app-routes";
+import { studentProfile } from "@/lib/content";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
+import { igraDaypartNow } from "@/lib/igra-daypart";
 import { normalizeLocale } from "@/lib/i18n";
 import type { Metadata } from "next";
 
@@ -33,12 +36,13 @@ export default async function StudentDashboardPage({
   const legacyTarget = legacyCourseRedirect(locale, incomingSearchParams);
   if (legacyTarget) redirect(legacyTarget);
 
-  const profile = await getCurrentViewerProfile();
-  return (
-    <StudentDashboard
-      locale={locale}
-      profile={profile}
-      hasConvex={Boolean(process.env.NEXT_PUBLIC_CONVEX_URL)}
-    />
-  );
+  const profile = (await getCurrentViewerProfile()) ?? studentProfile;
+  // Doba dana (Beograd) bira scenu i pozdrav heroja. Računa ga server, pa je slika u HTML-u
+  // i nema neslaganja pri hidrataciji; posle `await`-a iznad ruta je već dinamička.
+  const daypart = igraDaypartNow();
+
+  if (process.env.NEXT_PUBLIC_CONVEX_URL) {
+    return <LiveDashboardHome locale={locale} profile={profile} daypart={daypart} />;
+  }
+  return <DashboardHome locale={locale} profile={profile} overview={null} staticCourses={staticDashboardCourses()} daypart={daypart} igra={null} />;
 }

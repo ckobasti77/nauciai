@@ -58,6 +58,49 @@ export const IGRA_SHELL_COPY = {
   leaderboardLink: { sr: "Rang lista", en: "Leaderboard" },
 } satisfies Record<string, LocalizedText>;
 
+/** Kontrolna tabla (K08): heroj po dobu dana, misija dana, Crea brzi start, kalendar. */
+export const IGRA_DASHBOARD_COPY = {
+  greetingJutro: { sr: "Dobro jutro", en: "Good morning" },
+  greetingDan: { sr: "Dobar dan", en: "Good afternoon" },
+  greetingVece: { sr: "Dobro veče", en: "Good evening" },
+  greetingNoc: { sr: "Zdravo", en: "Hi" },
+  robiJutro: { sr: "Kafa je skuvana, sveska otvorena. Šta danas učimo?", en: "Coffee is on, the notebook is open. What are we learning today?" },
+  robiDan: { sr: "Dobar trenutak za jedan mali korak. Tu sam ako zapne.", en: "A good moment for one small step. I'm here if you get stuck." },
+  robiVece: { sr: "Veče je za mirno učenje. Jedna lekcija, pa odmor.", en: "Evenings are for quiet learning. One lesson, then rest." },
+  robiNoc: { sr: "Sova i ja još ne spavamo. Polako, bez žurbe.", en: "The Owl and I are still up. Take it slow, no rush." },
+  openClassroom: { sr: "Otvori učionicu", en: "Open classroom" },
+  lessonsDone: { sr: "završenih lekcija", en: "lessons completed" },
+  missionCourseTitle: { sr: "Izaberi prvi kurs", en: "Pick your first course" },
+  missionCourseBody: {
+    sr: "Pogledaj šta te čeka i otključaj kurs koji ti najviše leži.",
+    en: "See what is waiting and unlock the course that suits you best.",
+  },
+  missionCourseCta: { sr: "Pogledaj kurseve", en: "Browse courses" },
+  missionLessonFirstTitle: { sr: "Započni prvu lekciju", en: "Start your first lesson" },
+  missionLessonStartCta: { sr: "Započni lekciju", en: "Start the lesson" },
+  missionLessonCta: { sr: "Nastavi lekciju", en: "Continue the lesson" },
+  missionCreaTitle: { sr: "Napravi prvi rad u Crei", en: "Make your first creation in Crea" },
+  missionCreaBody: { sr: "Jedna rečenica je dovoljna. Piksi je pretvara u sliku.", en: "One sentence is enough. Piksi turns it into an image." },
+  missionCreaCta: { sr: "Otvori Creu", en: "Open Crea" },
+  missionCommunityTitle: { sr: "Javi se zajednici", en: "Say hi to the community" },
+  missionCommunityBody: {
+    sr: "Postavi prvo pitanje ili se predstavi. Neko će ti odgovoriti.",
+    en: "Ask your first question or introduce yourself. Someone will answer.",
+  },
+  missionCommunityCta: { sr: "Otvori zajednicu", en: "Open the community" },
+  missionMoreTitle: { sr: "Još jedna lekcija?", en: "One more lesson?" },
+  creaEyebrow: { sr: "Crea", en: "Crea" },
+  creaTitle: { sr: "Šta praviš danas?", en: "What are you making today?" },
+  creaImage: { sr: "Slika", en: "Image" },
+  creaVideo: { sr: "Video", en: "Video" },
+  creaSound: { sr: "Zvuk", en: "Sound" },
+  calendarTitle: { sr: "Tvoj trag", en: "Your trail" },
+  calendarEmpty: { sr: "Prvi trag mastila stiže uz prvu lekciju ili rad.", en: "The first ink mark comes with your first lesson or creation." },
+  calendarToday: { sr: "danas", en: "today" },
+  calendarLess: { sr: "manje", en: "less" },
+  calendarMore: { sr: "više", en: "more" },
+} satisfies Record<string, LocalizedText>;
+
 export const IGRA_DAY_FORMS: Record<Locale, PluralForms> = {
   sr: { one: "dan", few: "dana", many: "dana" },
   en: { one: "day", few: "days", many: "days" },

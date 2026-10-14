@@ -166,6 +166,11 @@
   --igra-medal-gold: var(--yellow);
   --igra-medal-silver: #c9d4df;
   --igra-medal-bronze: #d98a5b;
+  /* Papir IGRA scena (K08): prosečna boja praznog dela `scena.dashboard-*` (izmereno na
+     četiri scene: #fbf3de-#fdf6e3). Heroj nosi ovu boju kao podlogu, pa se crtež stapa sa
+     karticom bez šava. Ton pripada slici, ne paleti, i zato je isti u obe teme (heroj je
+     svetlo ostrvo), kao `--hero-paper`. */
+  --igra-scene-paper: #fcf5e1;
   /* Tekstura papira bez fajla: sivi šum (feTurbulence) koji `.igra-paper` meša sa
      podlogom. Srednje siva je neutralna za `soft-light`, pa tekstura ne menja ton papira. */
   --igra-paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
@@ -279,6 +284,7 @@
   --color-igra-track: var(--igra-track);
   --color-igra-stamp: var(--igra-stamp);
   --color-igra-sticker-edge: var(--igra-sticker-edge);
+  --color-igra-scene-paper: var(--igra-scene-paper);
   --font-sans: "Nunito", "Nunito Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Patrick Hand", "Patrick Hand Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;

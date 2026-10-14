@@ -42,7 +42,7 @@ describe("izlog", () => {
   it("delovi imaju jedinstvene ID-jeve i svaki svoj fajl", () => {
     const registry = read("components/igra/izlog/registry.ts");
     const ids = [...registry.matchAll(/\{ id: "([a-z0-9-]+)"/g)].map((match) => match[1]!);
-    expect(ids).toEqual(["slike", "pokret", "primitivi", "ljuska"]);
+    expect(ids).toEqual(["slike", "pokret", "primitivi", "ljuska", "tabla"]);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(readdirSync(join(ROOT, "components/igra/izlog")), id).toContain(`izlog-${id}.tsx`);
   });

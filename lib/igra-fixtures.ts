@@ -1,6 +1,7 @@
 import type { FunctionReturnType } from "convex/server";
 
 import type { api } from "../convex/_generated/api";
+import type { Id } from "../convex/_generated/dataModel";
 import { computeStreak, shiftDayKey, type StreakDay } from "./crea-streak";
 import type { IgraLik, IgraPoza } from "./igra-art";
 import { EMPTY_BADGE_COUNTERS, evaluateBadges, type IgraBadgeCounters, type IgraBadgeKey } from "./igra-badges";
@@ -204,5 +205,130 @@ export const IGRA_MISSION_FIXTURES: Record<IgraFixtureId, IgraMissionFixture> = 
     path: "/app/community",
     lik: "iskra",
     poza: "mase",
+  },
+};
+
+/**
+ * Kontrolna tabla (K08): odgovor `dashboard:getDashboardOverview` za ista tri korisnika.
+ * Promena oblika agregata lomi typecheck ovde. `activity` je po danu, unazad od „danas".
+ */
+export type DashboardOverviewFixture = NonNullable<FunctionReturnType<typeof api.dashboard.getDashboardOverview>>;
+
+const AT = (daysAgo: number) => NOW - daysAgo * DAY_MS;
+
+/** Završene lekcije po danu: `[pre koliko dana, koliko lekcija]`. */
+function lessonDays(entries: ReadonlyArray<readonly [number, number]>): DashboardOverviewFixture["activity"] {
+  return entries
+    .map(([daysAgo, completed]) => ({ day: shiftDayKey(IGRA_FIXTURE_TODAY, -daysAgo), completed }))
+    .sort((a, b) => a.day.localeCompare(b.day));
+}
+
+const EMPTY_OVERVIEW: DashboardOverviewFixture = {
+  resume: null,
+  progress: { completedLessons: 0, totalLessons: 0, percent: 0 },
+  nextLessons: [],
+  activity: [],
+  messages: { unreadTotal: 0, items: [] },
+  community: { unreadNotifications: 0, items: [] },
+  notifications: { total: 0, items: [] },
+  studio: { creditsBalance: 0, items: [] },
+  study: { pendingInvites: 0, partners: 0 },
+  leaderboard: null,
+  firstRun: { hasUnlockedCourse: false, hasCommunityPost: false },
+  admin: null,
+};
+
+const COMMUNITY_ITEMS: DashboardOverviewFixture["community"]["items"] = [
+  { postId: "fixture-post-1" as Id<"communityPosts">, title: "Kako da napišem prvi prompt za mejl klijentu?", author: "Milica Petrović", replies: 6, at: AT(0) },
+  { postId: "fixture-post-2" as Id<"communityPosts">, title: "Pokažite svoj prvi rad iz Cree", author: "Stefan Kovač", replies: 14, at: AT(1) },
+  { postId: "fixture-post-3" as Id<"communityPosts">, title: "Koji kurs posle „Promptova koji rade”?", author: "Jelena Marić", replies: 3, at: AT(2) },
+];
+
+export const DASHBOARD_OVERVIEW_FIXTURES: Record<IgraFixtureId, DashboardOverviewFixture> = {
+  // Tek registrovan: nema kurs, nema aktivnosti; zajednica je živa, krediti dobrodošlice.
+  novi: {
+    ...EMPTY_OVERVIEW,
+    community: { unreadNotifications: 0, items: COMMUNITY_ITEMS },
+    studio: { creditsBalance: 40, items: [] },
+  },
+
+  // Treća nedelja: kurs u toku (lekcija 4 od 9), isti dani kao niz u `IGRA_FIXTURES.aktivan`.
+  aktivan: {
+    ...EMPTY_OVERVIEW,
+    resume: {
+      courseSlug: "promptovi-koji-rade",
+      lessonSlug: "uloge-i-kontekst",
+      courseTitle: { sr: "Promptovi koji rade", en: "Prompts that work" },
+      lessonTitle: { sr: "Uloge i kontekst", en: "Roles and context" },
+      position: 4,
+      total: 9,
+      coverUrl: null,
+    },
+    progress: { completedLessons: 14, totalLessons: 31, percent: 45 },
+    nextLessons: [
+      { courseSlug: "promptovi-koji-rade", lessonSlug: "uloge-i-kontekst", title: { sr: "Uloge i kontekst", en: "Roles and context" }, durationSeconds: 480 },
+      { courseSlug: "promptovi-koji-rade", lessonSlug: "primeri-u-promptu", title: { sr: "Primeri u promptu", en: "Examples in a prompt" }, durationSeconds: 540 },
+      { courseSlug: "ai-za-svaki-dan", lessonSlug: "plan-nedelje", title: { sr: "Plan nedelje uz AI", en: "A weekly plan with AI" }, durationSeconds: 660 },
+    ],
+    activity: lessonDays([
+      [0, 1], [1, 2], [2, 1], [3, 1], [4, 3], [5, 1],
+      [8, 1], [9, 1], [10, 2], [11, 1], [12, 1], [13, 2], [14, 1], [15, 1], [16, 1],
+      [22, 1], [23, 2], [27, 1], [30, 1], [31, 3], [36, 1], [40, 1], [44, 2], [45, 1], [51, 1],
+      [58, 1], [62, 2], [70, 1], [77, 1], [85, 1], [99, 2], [120, 1],
+    ]),
+    messages: {
+      unreadTotal: 2,
+      items: [
+        { conversationId: "fixture-chat-1" as Id<"chatConversations">, title: "Milica Petrović", snippet: "Hvala za savet oko uloga, proradilo je!", at: AT(0), avatarUrl: null },
+        { conversationId: "fixture-chat-2" as Id<"chatConversations">, title: "Uči zajedno: Promptovi", snippet: "Večeras u 20 h prelazimo lekciju 4?", at: AT(1), avatarUrl: null },
+      ],
+    },
+    community: { unreadNotifications: 1, items: COMMUNITY_ITEMS },
+    notifications: {
+      total: 3,
+      items: [
+        { kind: "reply", title: "Stefan Kovač je odgovorio na tvoju temu", at: AT(0), href: "/app/community/notifications" },
+        { kind: "helpful", title: "Tvoj odgovor je označen kao koristan", at: AT(2), href: "/app/community/notifications" },
+        { kind: "mention", title: "Jelena Marić te je pomenula", at: AT(3), href: "/app/community/notifications" },
+      ],
+    },
+    studio: {
+      creditsBalance: 1250,
+      items: [
+        { jobId: "fixture-job-1" as Id<"generationJobs">, kind: "image", thumbUrl: null, at: AT(0) },
+        { jobId: "fixture-job-2" as Id<"generationJobs">, kind: "video", thumbUrl: null, at: AT(2) },
+        { jobId: "fixture-job-3" as Id<"generationJobs">, kind: "image", thumbUrl: null, at: AT(3) },
+      ],
+    },
+    study: { pendingInvites: 1, partners: 1 },
+    leaderboard: { rank: 7, points: 435 },
+    firstRun: { hasUnlockedCourse: true, hasCommunityPost: true },
+  },
+
+  // Višemesečni rad: sve lekcije završene, prvo mesto ove nedelje.
+  legenda: {
+    ...EMPTY_OVERVIEW,
+    progress: { completedLessons: 148, totalLessons: 148, percent: 100 },
+    activity: lessonDays([
+      ...Array.from({ length: 64 }, (_, daysAgo) => [daysAgo, (daysAgo % 4) + 1] as const),
+      ...Array.from({ length: 58 }, (_, index) => [66 + index * 2, (index % 3) + 1] as const),
+    ]),
+    messages: {
+      unreadTotal: 1,
+      items: [{ conversationId: "fixture-chat-3" as Id<"chatConversations">, title: "Nikola Stanić", snippet: "Možeš li da pogledaš moj prompt za prezentaciju?", at: AT(0), avatarUrl: null }],
+    },
+    community: { unreadNotifications: 4, items: COMMUNITY_ITEMS },
+    notifications: { total: 4, items: [{ kind: "helpful", title: "Tvoj odgovor je označen kao koristan", at: AT(0), href: "/app/community/notifications" }] },
+    studio: {
+      creditsBalance: 18400,
+      items: [
+        { jobId: "fixture-job-4" as Id<"generationJobs">, kind: "audio", thumbUrl: null, at: AT(0) },
+        { jobId: "fixture-job-5" as Id<"generationJobs">, kind: "video", thumbUrl: null, at: AT(1) },
+        { jobId: "fixture-job-6" as Id<"generationJobs">, kind: "image", thumbUrl: null, at: AT(1) },
+      ],
+    },
+    study: { pendingInvites: 0, partners: 2 },
+    leaderboard: { rank: 1, points: 1310 },
+    firstRun: { hasUnlockedCourse: true, hasCommunityPost: true },
   },
 };

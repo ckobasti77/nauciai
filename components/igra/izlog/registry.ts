@@ -4,6 +4,7 @@ import { IzlogLjuska } from "@/components/igra/izlog/izlog-ljuska";
 import { IzlogPokret } from "@/components/igra/izlog/izlog-pokret";
 import { IzlogPrimitivi } from "@/components/igra/izlog/izlog-primitivi";
 import { IzlogSlike } from "@/components/igra/izlog/izlog-slike";
+import { IzlogTabla } from "@/components/igra/izlog/izlog-tabla";
 import type { IgraFixtureId } from "@/lib/igra-fixtures";
 import type { Locale, LocalizedText } from "@/lib/i18n";
 
@@ -23,4 +24,5 @@ export const IZLOG_PARTS: readonly IzlogPart[] = [
   { id: "pokret", label: { sr: "Pokret i 3D", en: "Motion and 3D" }, Part: IzlogPokret },
   { id: "primitivi", label: { sr: "Primitivi", en: "Primitives" }, Part: IzlogPrimitivi },
   { id: "ljuska", label: { sr: "Ljuska aplikacije", en: "App shell" }, Part: IzlogLjuska },
+  { id: "tabla", label: { sr: "Kontrolna tabla", en: "Dashboard" }, Part: IzlogTabla },
 ];

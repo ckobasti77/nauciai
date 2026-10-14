@@ -5,7 +5,6 @@ import { useQuery } from "convex/react";
 
 import {
   DashboardContent,
-  DashboardHome,
   DashboardHomeSkeleton,
   type DashboardCourse,
 } from "@/components/app/dashboard-content";
@@ -21,6 +20,8 @@ import { withLocale, type Locale } from "@/lib/i18n";
 export { coursesFromLive, isLiveCatalogEmpty } from "@/lib/dashboard-courses";
 export type { LiveNavigationResult } from "@/lib/dashboard-courses";
 
+// Stranica kursa (`/app/classroom/courses/[courseSlug]`). Komandna tabla (`/app`) je u
+// `components/app/dashboard-home.tsx` i hrani se svojim agregatom.
 export function LiveStudentDashboard({
   locale,
   profile,
@@ -30,36 +31,18 @@ export function LiveStudentDashboard({
 }: {
   locale: Locale;
   profile?: ViewerProfile;
-  courseSlug?: string;
+  courseSlug: string;
   fallbackCourse: DashboardCourse;
   fallbackCourses: DashboardCourse[];
 }) {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  // Komandna tabla se hrani JEDNIM agregatom. courseSlug (legacy /app?course=) je
-  // preusmeren na /app/classroom u page.tsx pre nego što stigne dovde, pa je ta grana
-  // van komandne table i i dalje čita getAppNavigation samo kad je slug prisutan.
-  const overview = useQuery(api.dashboard.getDashboardOverview, isAuthenticated && !courseSlug ? {} : "skip");
-  const liveNavigation = useQuery(
-    api.courses.getAppNavigation,
-    isAuthenticated && courseSlug ? {} : "skip",
-  ) as LiveNavigationResult;
+  const liveNavigation = useQuery(api.courses.getAppNavigation, isAuthenticated ? {} : "skip") as LiveNavigationResult;
   const isAdmin = profile?.role === "admin" || liveNavigation?.profile?.role === "admin";
 
   // Three states, kept distinct: loading (auth resolving, or query still undefined),
   // empty (query resolved with nothing), loaded. Conflating the first two is what made the
   // dashboard show fabricated data on every page load.
-  if (authLoading) {
-    return <DashboardHomeSkeleton />;
-  }
-
-  if (!courseSlug) {
-    if (isAuthenticated && overview === undefined) {
-      return <DashboardHomeSkeleton />;
-    }
-    return <DashboardHome locale={locale} profile={profile} overview={overview ?? null} />;
-  }
-
-  if (isAuthenticated && liveNavigation === undefined) {
+  if (authLoading || (isAuthenticated && liveNavigation === undefined)) {
     return <DashboardHomeSkeleton />;
   }
 

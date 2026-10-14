@@ -65,6 +65,7 @@ describe("IGRA tokeni", () => {
         "--igra-medal-gold",
         "--igra-medal-silver",
         "--igra-medal-bronze",
+        "--igra-scene-paper",
         "--igra-paper-grain",
         "--igra-paper-grain-opacity",
         "--igra-paper-grain-blend",
@@ -96,8 +97,12 @@ describe("IGRA tokeni", () => {
     expect(tokensIn(dark)).not.toContain("--igra-marker");
   });
 
+  test("papir scene je ton slike: isti u obe teme", () => {
+    expect(tokensIn(dark)).not.toContain("--igra-scene-paper");
+  });
+
   test("boje su dostupne kao Tailwind klase", () => {
-    for (const name of ["marker", "marker-wash", "track", "stamp", "sticker-edge"]) {
+    for (const name of ["marker", "marker-wash", "track", "stamp", "sticker-edge", "scene-paper"]) {
       expect(theme, name).toContain(`--color-igra-${name}: var(--igra-${name});`);
     }
   });

@@ -2,8 +2,6 @@
 
 import { useMutation, useQuery } from "convex/react";
 import {
-  ArrowRight,
-  BarChart3,
   BookOpen,
   Check,
   ChevronDown,
@@ -22,7 +20,6 @@ import {
   Sparkles,
   Trash2,
   UploadCloud,
-  X,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
@@ -34,7 +31,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type ChangeEvent,
   type DragEvent,
   type MouseEvent,
@@ -44,30 +40,19 @@ import {
 import { InlineContentText } from "@/components/app/inline-content";
 import { InlineRichText } from "@/components/app/rich-text";
 import { CheckoutButton } from "@/components/app/checkout-button";
-import {
-  DashboardPulse,
-  DashboardWindowsGrid,
-  type DashboardOverview,
-  type NextLesson,
-} from "@/components/app/dashboard-windows";
+import type { DashboardOverview, NextLesson } from "@/components/app/dashboard-windows";
 import { LoopVideo } from "@/components/marketing/loop-video";
-import { classroomPath, courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
+import { courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
 import { catalogCourseLoop } from "@/lib/course-catalog";
 import {
   buildFirstRunChecklist,
   celebratedStepId,
   firstRunDoneCount,
   firstRunDoneIds,
-  firstRunZoneView,
   type FirstRunSignals,
   type FirstRunStepId,
 } from "@/lib/dashboard-first-run";
-import {
-  readFirstRunReadyDismissed,
-  writeFirstRunReadyDismissed,
-} from "@/lib/dashboard-first-run-preference";
 import { ConfirmDialog } from "@/components/ui/dialog";
-import { EmptyState } from "@/components/ui/empty-state";
 import { HandUnderline, LinkButton, Panel, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
@@ -246,28 +231,6 @@ function activityFromLessons(lessons: DashboardLesson[]) {
   return Array.from(counts.entries())
     .map(([day, completed]) => ({ day, completed }))
     .sort((a, b) => a.day.localeCompare(b.day));
-}
-
-// Rolling window only. An uncapped series produced one bar per day since the account's
-// first activity, so a year-old account rendered ~365 bars in a ~300px card.
-const activityRanges = [30, 90] as const;
-type ActivityRange = (typeof activityRanges)[number];
-
-// Days are bucketed in UTC on the server (convex/courses.ts activityCounts) and in
-// activityFromLessons above, so the window has to be UTC too or counts land on the wrong bar.
-function dailyActivitySeries(activity: Array<{ day: string; completed: number }>, days: ActivityRange) {
-  const byDay = new Map(activity.map((item) => [item.day, item.completed]));
-  const end = new Date(`${new Date().toISOString().slice(0, 10)}T12:00:00.000Z`);
-
-  return Array.from({ length: days }, (_, index) => {
-    const date = new Date(end);
-    date.setUTCDate(end.getUTCDate() - (days - 1 - index));
-    const day = date.toISOString().slice(0, 10);
-    return {
-      day,
-      completed: byDay.get(day) ?? 0,
-    };
-  });
 }
 
 function formatLastActivity(locale: Locale, timestamp?: number) {
@@ -732,101 +695,6 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
   );
 }
 
-function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{ day: string; completed: number }> }) {
-  const [range, setRange] = useState<ActivityRange>(30);
-  const labelFormatter = new Intl.DateTimeFormat(locale === "sr" ? "sr-RS" : "en-US", { day: "2-digit", month: "2-digit" });
-  const formatDay = (day: string) => labelFormatter.format(new Date(`${day}T12:00:00.000Z`));
-
-  // A user with no completed lessons gets a single nudge elsewhere, not an axis of empty bars.
-  if (!activity.length) return null;
-
-  const days = dailyActivitySeries(activity, range);
-  const max = Math.max(1, ...days.map((item) => item.completed));
-  const middleTick = Math.max(1, Math.ceil(max / 2));
-  const total = days.reduce((sum, item) => sum + item.completed, 0);
-  const isDense = range > 30;
-
-  return (
-    <Panel className="p-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="type-eyebrow text-muted">{tr(locale, "Dnevni ritam", "Daily pace")}</p>
-          <h2 className="mt-2 type-h2 text-ink">{tr(locale, "Završene lekcije", "Completed lessons")}</h2>
-        </div>
-        <div
-          role="group"
-          aria-label={tr(locale, "Vremenski opseg", "Time range")}
-          className="flex items-center gap-1 rounded-full border-2 border-ink bg-paper p-1"
-        >
-          {activityRanges.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setRange(option)}
-              aria-pressed={range === option}
-              className={cn(
-                "min-h-8 rounded-full px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                range === option ? "bg-ink text-paper-strong" : "text-muted hover:text-ink",
-              )}
-            >
-              {option}
-              {tr(locale, "d", "d")}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="mt-5 flex items-stretch gap-2">
-        <div className="relative h-40 w-7 shrink-0 type-caption font-black text-muted" aria-hidden="true">
-          <span className="absolute -top-1 right-0">{max}</span>
-          <span className="absolute right-0 top-1/2 -translate-y-1/2">{middleTick}</span>
-          <span className="absolute -bottom-1 right-0">0</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          {/* data-motion lives on the container, not per bar: page-motion staggers `chart`
-              by 0.035s with no cap, and its onComplete is what clears will-change page-wide. */}
-          <div
-            data-motion="chart"
-            role="img"
-            aria-label={tr(
-              locale,
-              `Završene lekcije po danu, poslednjih ${range} dana. Ukupno ${total}, najviše ${max} u jednom danu.`,
-              `Completed lessons per day, last ${range} days. ${total} total, up to ${max} in a single day.`,
-            )}
-            className={cn(
-              "flex h-40 items-end border-b border-line px-1 [background-image:linear-gradient(to_bottom,color-mix(in_srgb,var(--ink)_8%,transparent)_1px,transparent_1px)] [background-size:100%_50%]",
-              isDense ? "gap-px" : "gap-[2px]",
-            )}
-          >
-            {days.map((item) => (
-              <div
-                key={item.day}
-                // flex-1 with no min-width: bars always divide the available width, so the
-                // chart can never scroll horizontally at any viewport. At 90d a 2px bar is
-                // narrower than its own border, so the dense view drops the border and
-                // fills with ink (12.92:1 on paper) instead of yellow (1.69:1).
-                className={cn(
-                  "min-w-0 flex-1 rounded-t-[8px]",
-                  isDense
-                    ? item.completed
-                      ? "bg-ink"
-                      : "bg-line"
-                    : cn("border-2 border-b-0 border-ink", item.completed ? "bg-yellow" : "bg-paper"),
-                )}
-                style={{ height: `${item.completed ? Math.max(7, (item.completed / max) * 100) : 3}%` }}
-                title={`${formatDay(item.day)}: ${item.completed}`}
-              />
-            ))}
-          </div>
-          <div className="mt-2 flex justify-between type-eyebrow-sm text-muted" aria-hidden="true">
-            <span>{formatDay(days[0].day)}</span>
-            <span>{formatDay(days[days.length - 1].day)}</span>
-          </div>
-        </div>
-      </div>
-    </Panel>
-  );
-}
-
 export function CourseCover({
   course,
   locale,
@@ -1100,19 +968,39 @@ export function DashboardHomeSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Učitavanje / Loading">
       {/* Heights track the loaded layout so the swap does not shift anything below it.
-          A NASTAVI (hero) · B PULS (4 tile-a) · C PROZORI (grid) · D RITAM. */}
-      <div className="h-[22rem] animate-pulse rounded-[16px] border-2 border-line bg-paper-strong sm:h-64" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[0, 1, 2, 3].map((item) => (
-          <div key={item} className="h-24 animate-pulse rounded-[8px] border-2 border-line bg-paper-strong" />
+          HEROJ · NAPREDAK · PULS (4 tile-a) · BEDŽEVI + CREA · PROZORI (grid) · KALENDAR. */}
+      <div className="h-[38.5rem] animate-pulse surface-card border-2 border-line bg-paper-strong sm:h-[36rem] xl:h-[27.5rem] min-[1400px]:h-[25.25rem]" />
+      <div className="h-[21.5rem] animate-pulse surface-card border-2 border-line bg-paper-strong sm:h-64 lg:h-[9.25rem]" />
+      <DashboardPulseSkeleton />
+      <div className="grid gap-6 lg:grid-cols-2">
+        {[0, 1].map((item) => (
+          <div key={item} className="h-[15.25rem] animate-pulse surface-card border-2 border-line bg-paper-strong" />
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
-        {[0, 1, 2].map((item) => (
-          <div key={item} className="h-64 animate-pulse rounded-[16px] border-2 border-line bg-paper-strong" />
-        ))}
-      </div>
-      <div className="h-72 animate-pulse rounded-[16px] border-2 border-line bg-paper-strong" />
+      <DashboardWindowsSkeleton />
+      <div className="h-[23.5rem] animate-pulse surface-card border-2 border-line bg-paper-strong xl:h-64" />
+    </div>
+  );
+}
+
+/** Skelet pulsa (4 pločice) - isti u skeletu cele table i dok tabla čeka upit. */
+export function DashboardPulseSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {[0, 1, 2, 3].map((item) => (
+        <div key={item} className="h-[5.5rem] animate-pulse surface-card border-2 border-line bg-paper-strong sm:h-[5.875rem]" />
+      ))}
+    </div>
+  );
+}
+
+/** Skelet mreže prozora: šest prozora, koliko tabla ima (bez admin para). */
+export function DashboardWindowsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
+      {[0, 1, 2, 3, 4, 5].map((item) => (
+        <div key={item} className="h-[26rem] animate-pulse surface-card border-2 border-line bg-paper-strong" />
+      ))}
     </div>
   );
 }
@@ -1157,10 +1045,16 @@ export function DashboardFirstRun({
   locale,
   profileName,
   signals,
+  embedded = false,
 }: {
   locale: Locale;
   profileName: string;
   signals: FirstRunSignals;
+  /**
+   * Na komandnoj tabli (IGRA K08) pozdrav i dugme već nosi heroj iznad, pa ovde ostaju
+   * samo naslov i koraci. Učionica ga i dalje crta ceo.
+   */
+  embedded?: boolean;
 }) {
   const steps = buildFirstRunChecklist(signals);
   const doneCount = firstRunDoneCount(steps);
@@ -1220,34 +1114,42 @@ export function DashboardFirstRun({
         strokeWidth={1.25}
         className="pointer-events-none absolute -right-6 -bottom-8 hidden size-48 text-ink/10 sm:block"
       />
-      <div data-motion="hero" className="relative p-4 sm:p-6">
+      <div data-motion={embedded ? "card" : "hero"} className="relative p-4 sm:p-6">
         <div
           data-motion="copy"
           className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
         >
           <div className="min-w-0">
-            {/* Pozdrav je rukopis (Patrick Hand), naslov je stampano crno — dve
-                razlicite ruke na istoj visini, pa se ne takmice. */}
-            <p className="font-display type-display-sm text-ink">
-              {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
-            </p>
-            <h1 className="mt-1 type-h1 text-ink">
-              {tr(locale, "Tvoji prvi koraci", "Your first steps")}
-            </h1>
+            {embedded ? (
+              <h2 className="type-h2 text-ink">{tr(locale, "Tvoji prvi koraci", "Your first steps")}</h2>
+            ) : (
+              <>
+                {/* Pozdrav je rukopis (Patrick Hand), naslov je stampano crno — dve
+                    razlicite ruke na istoj visini, pa se ne takmice. */}
+                <p className="font-display type-display-sm text-ink">
+                  {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
+                </p>
+                <h1 className="mt-1 type-h1 text-ink">
+                  {tr(locale, "Tvoji prvi koraci", "Your first steps")}
+                </h1>
+              </>
+            )}
             {/* Isti školski potpis kao na marketingu, samo u aplikacijskoj veličini —
                 stoji SAMO ispod naslova zone, nikad ispod podnaslova (§4 U9: ne pretrpavaj). */}
             <HandUnderline size="sm" className="mt-1" />
             <p className="mt-2 max-w-2xl type-body-sm font-bold text-muted">{lead}</p>
           </div>
-          <LinkButton
-            href={courseCatalogPath(locale)}
-            tone="yellow"
-            size="lg"
-            className="w-full shrink-0 sm:w-fit"
-          >
-            <Sparkles className="size-5" />
-            {tr(locale, "Pogledaj kurseve", "Browse courses")}
-          </LinkButton>
+          {embedded ? null : (
+            <LinkButton
+              href={courseCatalogPath(locale)}
+              tone="yellow"
+              size="lg"
+              className="w-full shrink-0 sm:w-fit"
+            >
+              <Sparkles className="size-5" />
+              {tr(locale, "Pogledaj kurseve", "Browse courses")}
+            </LinkButton>
+          )}
         </div>
 
         {/* Koraci su stavke iz sveske: kvadratno polje za stikliranje umesto kruzica
@@ -1302,211 +1204,13 @@ export function DashboardFirstRun({
   );
 }
 
-// `localStorage` nema sopstvenu pretplatu unutar istog taba, pa je ovo najmanji
-// mogući izvor promene za `useSyncExternalStore`: kad korisnik zatvori „sve spremno"
-// traku, `notifyReadyBarChanged` obavesti render da je pročita ponovo. Isti obrazac
-// kao `dismissalListeners` u `intro-panel.tsx`.
-const readyBarListeners = new Set<() => void>();
-
-function subscribeReadyBar(listener: () => void) {
-  readyBarListeners.add(listener);
-  return () => {
-    readyBarListeners.delete(listener);
-  };
-}
-
-function notifyReadyBarChanged() {
-  for (const listener of readyBarListeners) listener();
-}
-
-// Jednoredna „sve spremno" traka: zamenjuje punu checklistu kad je student sve već
-// odradio, da lista prvih koraka ne stoji zauvek kao prekor. Zatvara se na X i to
-// se pamti po korisniku (`lib/dashboard-first-run-preference.ts`). Kad je zatvorena,
-// zona A se uopšte ne renderuje (vidi `DashboardHome`) i mreža prozora se podiže.
-function FirstRunReadyBar({ locale, onDismiss }: { locale: Locale; onDismiss?: () => void }) {
-  return (
-    <Panel className="relative overflow-hidden">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
-      <div className="relative flex items-center gap-3 p-3 sm:p-4">
-        <span className="grid size-9 shrink-0 place-items-center surface-media border-2 border-ink bg-ink text-paper-strong">
-          <Check aria-hidden="true" className="size-5" />
-        </span>
-        <p className="min-w-0 flex-1 type-body-sm font-bold text-ink">
-          <span className="font-black">{tr(locale, "Sve spremno", "All set")}</span>
-          {" — "}
-          {tr(locale, "sledeći korak:", "next step:")}{" "}
-          <Link
-            href={courseCatalogPath(locale)}
-            className="inline-flex items-center gap-1 font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            {tr(locale, "izaberi kurs", "choose a course")}
-            <ArrowRight aria-hidden="true" className="size-3.5" />
-          </Link>
-        </p>
-        {onDismiss ? (
-          <button
-            type="button"
-            onClick={onDismiss}
-            aria-label={tr(locale, "Zatvori i ne prikazuj ponovo", "Close and do not show again")}
-            className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-line bg-paper text-ink transition hover:bg-yellow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            <X aria-hidden="true" className="size-4" />
-          </button>
-        ) : null}
-      </div>
-    </Panel>
-  );
-}
-
-// Zajednički oblik „nastavi" hero-a — identičan payload-u agregata (`resume`),
-// da i live i statička (hasConvex === false) grana hrane isti ResumeHero.
+// Zajednički oblik „nastavi" podatka — identičan payload-u agregata (`resume`), da i live
+// i statička (hasConvex === false) grana hrane istu misiju dana na tabli.
 type ResumeData = NonNullable<DashboardOverview["resume"]>;
 
-function HeroCover({ coverUrl, title }: { coverUrl: string | null; title: string }) {
-  if (coverUrl) {
-    return (
-      <Image
-        src={coverUrl}
-        alt={title}
-        fill
-        sizes="(min-width: 1024px) 25vw, 100vw"
-        unoptimized
-        className="surface-media object-cover"
-      />
-    );
-  }
-  return (
-    <div className="relative h-full overflow-hidden surface-media bg-paper">
-      <div className="absolute inset-0 ink-hatch" />
-      <div className="relative flex h-full items-center justify-center p-6 text-center">
-        <span className="inline-flex size-14 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--shadow-hard-15)]">
-          <BookOpen className="size-7" />
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// Zona A — NASTAVI. Zadržan postojeći hero obrazac (cover, „Sledeća lekcija",
-// dugme „Nastavi/Započni lekciju N/M", ink panel sa ukupnim %), + sekundarni
-// link „Otvori učionicu".
-function ResumeHero({
-  locale,
-  profileName,
-  resume,
-  progress,
-}: {
-  locale: Locale;
-  profileName: string;
-  resume: ResumeData | null;
-  progress: { completedLessons: number; totalLessons: number; percent: number };
-}) {
-  const overallPercent = clampPercent(progress.percent);
-
-  return (
-    <section
-      data-motion="hero"
-      className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
-    >
-      <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="relative p-4 sm:p-6" data-motion="copy">
-          {/* Ista skolska podloga kao na pozdravnom herou (`sketch-grid`), da zona A
-              izgleda kao jedna stvar bez obzira da li student ima sta da nastavi. */}
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
-          <p className="relative font-display type-display-sm text-ink">
-            {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
-          </p>
-
-          {resume ? (
-            <div className="relative mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
-              <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden surface-media border-2 border-ink bg-paper sm:w-44">
-                <HeroCover coverUrl={resume.coverUrl} title={localized(resume.courseTitle, locale)} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h1 className="type-h1 text-ink">
-                  {localized(resume.courseTitle, locale)}
-                </h1>
-                <p className="mt-2 type-body type-measure font-bold text-muted">
-                  <span className="font-black text-ink">{tr(locale, "Sledeća lekcija", "Next lesson")}</span>
-                  {" · "}
-                  {localized(resume.lessonTitle, locale)}
-                </p>
-                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
-                  <LinkButton href={lessonPath(locale, resume.courseSlug, resume.lessonSlug)} tone="yellow" size="lg">
-                    <PlayCircle className="size-5" />
-                    {resume.position <= 1
-                      ? tr(
-                          locale,
-                          `Započni lekciju ${resume.position}/${resume.total}`,
-                          `Start lesson ${resume.position}/${resume.total}`,
-                        )
-                      : tr(
-                          locale,
-                          `Nastavi lekciju ${resume.position}/${resume.total}`,
-                          `Continue lesson ${resume.position}/${resume.total}`,
-                        )}
-                  </LinkButton>
-                  <Link
-                    href={classroomPath(locale)}
-                    className="inline-flex items-center gap-1 text-xs font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                  >
-                    {tr(locale, "Otvori učionicu", "Open classroom")}
-                    <ArrowRight className="size-3.5" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="relative mt-3">
-              <h1 className="type-h1 text-ink">
-                {tr(locale, "Sve lekcije su završene", "Every lesson is done")}
-              </h1>
-              <p className="mt-2 type-body type-measure font-bold text-muted">
-                {tr(
-                  locale,
-                  "Nema više lekcija na čekanju. Otvori učionicu da ponoviš gradivo.",
-                  "Nothing is queued up. Open the classroom to revisit the material.",
-                )}
-              </p>
-              <div className="mt-4">
-                <LinkButton href={classroomPath(locale)} tone="yellow" size="lg">
-                  <GraduationCap className="size-5" />
-                  {tr(locale, "Otvori učionicu", "Open classroom")}
-                </LinkButton>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="border-t-2 border-ink bg-ink p-4 text-paper-strong xl:border-l-2 xl:border-t-0">
-          <div className="flex h-full flex-col justify-center gap-2">
-            <p className="type-eyebrow text-paper-strong/65">
-              {tr(locale, "Ukupno", "Overall")}
-            </p>
-            <p className="type-hero">{overallPercent}%</p>
-            <CourseProgress
-              percent={overallPercent}
-              tone="ink"
-              label={tr(locale, "Ukupan napredak", "Overall progress")}
-            />
-            <p className="type-caption font-bold text-paper-strong/70">
-              {progress.completedLessons}/{progress.totalLessons || 0} {tr(locale, "zavrsenih lekcija", "completed lessons")}
-            </p>
-            {/* Ista topla recenica kao na kartici kursa, samo na ink podlozi. */}
-            <p className="type-caption font-black text-yellow">
-              {progressEncouragement(locale, {
-                completedLessons: progress.completedLessons,
-                totalLessons: progress.totalLessons,
-              })}
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-type CommandTableView = {
+// Ulaz komandne table (`components/app/dashboard-home.tsx`): isti oblik iz agregata
+// (live) i iz `lib/content` (statička grana).
+export type CommandTableView = {
   /**
    * „Ima kurs koji sme da otvori" — NE „u bazi postoji objavljen kurs".
    * Live grana čita `overview.firstRun.hasUnlockedCourse` (aktivan upis ili staff);
@@ -1523,9 +1227,9 @@ type CommandTableView = {
   nextLessons: NextLesson[];
 };
 
-// hasConvex === false: zona A + „Učionica" prozor iz statičkog lib/content, bez ijednog
+// hasConvex === false: misija dana + „Učionica" prozor iz statičkog lib/content, bez ijednog
 // Convex poziva. Ostali prozori dobijaju prazna stanja (overview === null).
-function staticCommandTableView(courses: DashboardCourse[], locale: Locale): CommandTableView {
+export function staticCommandTableView(courses: DashboardCourse[], locale: Locale): CommandTableView {
   const accessible = courses
     .filter((course) => course.status === "published" && course.hasAccess)
     .map((course) => ({ course, summary: getProgressSummary(course, locale) }));
@@ -1574,118 +1278,6 @@ function staticCommandTableView(courses: DashboardCourse[], locale: Locale): Com
   }
 
   return { hasUnlockedCourse: true, resume, progress: { completedLessons, totalLessons, percent }, activity: [], nextLessons };
-}
-
-// Komandna tabla: A NASTAVI (hero) · B PULS (4 tile-a) · C PROZORI (grid 1/2/3) · D RITAM.
-// Live: `overview` iz getDashboardOverview. Statička: `overview === null` + `staticCourses`.
-export function DashboardHome({
-  locale,
-  profile,
-  overview,
-  staticCourses,
-}: {
-  locale: Locale;
-  profile?: ViewerProfile;
-  overview: DashboardOverview | null;
-  staticCourses?: DashboardCourse[];
-}) {
-  const profileName = profile?.name ?? "Student";
-  const username = profile?.username ?? null;
-
-  const view: CommandTableView = overview
-    ? {
-        hasUnlockedCourse: overview.firstRun.hasUnlockedCourse,
-        hasCommunityPost: overview.firstRun.hasCommunityPost,
-        resume: overview.resume,
-        progress: overview.progress,
-        activity: overview.activity,
-        nextLessons: overview.nextLessons,
-      }
-    : staticCommandTableView(staticCourses ?? [], locale);
-
-  const firstRunSignals: FirstRunSignals = {
-    hasUnlockedCourse: view.hasUnlockedCourse,
-    completedLessons: view.progress.completedLessons,
-    hasCommunityPost: view.hasCommunityPost,
-  };
-  const firstRunSteps = buildFirstRunChecklist(firstRunSignals);
-
-  // Da li je „sve spremno" traka zatvorena za ovaj nalog. Na serveru odgovor ne
-  // postoji, pa je „zatvoreno" jedini bezbedan izbor: traka se pojavi tek posle
-  // hidracije umesto da bljesne pa nestane pred onim ko ju je već zatvorio.
-  const readyDismissed = useSyncExternalStore(
-    subscribeReadyBar,
-    () => (username ? readFirstRunReadyDismissed().includes(username) : false),
-    () => true,
-  );
-
-  // Zona A se MENJA, tabla se ne gasi. Ranije je ovde stajao `return
-  // <DashboardFirstRun/>` koji je gutao sve ostalo (§1B iz UX-BOOST-PLAN); sada je
-  // to `firstRunZoneView` sa četiri lica (hero / checklista / kompaktna traka / skriveno).
-  const zone = firstRunZoneView({
-    hasUnlockedCourse: view.hasUnlockedCourse,
-    hasResume: view.resume != null,
-    totalLessons: view.progress.totalLessons,
-    doneCount: firstRunDoneCount(firstRunSteps),
-    stepCount: firstRunSteps.length,
-    compactDismissed: readyDismissed,
-  });
-
-  return (
-    <div className="space-y-6">
-      {zone === "resume" ? (
-        <ResumeHero locale={locale} profileName={profileName} resume={view.resume} progress={view.progress} />
-      ) : zone === "checklist" ? (
-        <DashboardFirstRun locale={locale} profileName={profileName} signals={firstRunSignals} />
-      ) : zone === "compact" ? (
-        <FirstRunReadyBar
-          locale={locale}
-          onDismiss={
-            username
-              ? () => {
-                  writeFirstRunReadyDismissed(username);
-                  notifyReadyBarChanged();
-                }
-              : undefined
-          }
-        />
-      ) : null}
-      <DashboardPulse
-        locale={locale}
-        creditsBalance={overview?.studio.creditsBalance ?? 0}
-        unreadMessages={overview?.messages.unreadTotal ?? 0}
-        notifications={overview?.notifications.total ?? 0}
-        rank={overview?.leaderboard?.rank ?? null}
-      />
-      <DashboardWindowsGrid
-        locale={locale}
-        overview={overview}
-        nextLessons={view.nextLessons}
-        hasUnlockedCourse={view.hasUnlockedCourse}
-      />
-      {view.activity.length ? (
-        <ActivityPanel locale={locale} activity={view.activity} />
-      ) : (
-        // Zona D vise nije gola recenica na dnu stranice. Student bez ijedne zavrsene
-        // lekcije je do U11 dobijao jedan red teksta u pola praznog viewporta (§5);
-        // sada zona ima isto zaglavlje i istu visinu kao kad grafikon postoji.
-        <Panel className="p-4 sm:p-6">
-          <p className="type-eyebrow text-muted">{tr(locale, "Dnevni ritam", "Daily pace")}</p>
-          <div className="mt-3">
-            <EmptyState
-              icon={BarChart3}
-              title={tr(locale, "Ritam se još ne vidi", "No pace to show yet")}
-              body={tr(
-                locale,
-                "Završi prvu lekciju i ovde se pojavljuje tvoj dnevni ritam.",
-                "Finish your first lesson and your daily pace shows up here.",
-              )}
-            />
-          </div>
-        </Panel>
-      )}
-    </div>
-  );
 }
 
 export function DashboardContent({

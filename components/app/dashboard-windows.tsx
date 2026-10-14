@@ -19,11 +19,13 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { IgraArt } from "@/components/igra/igra-art";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import type { api } from "@/convex/_generated/api";
 import { classroomPath, courseCatalogPath, lessonPath } from "@/lib/app-routes";
 import { dashboardZoneChipClass, type DashboardZoneId } from "@/lib/dashboard-zones";
+import { rankChipView } from "@/lib/igra-a11y";
 import { localized, t as tr, withLocale, type Locale, type LocalizedText } from "@/lib/i18n";
 
 // Oblik koji vraća agregatni query — jedini izvor podataka za komandnu tablu.
@@ -234,7 +236,23 @@ function ThumbLeading({ url, label }: { url: string | null; label: ReactNode }) 
 }
 
 // ── PULS: 4 kompaktna tile-a ────────────────────────────────────────────────
-function PulseTile({ href, label, value, icon: Icon }: { href: string; label: string; value: string; icon: LucideIcon }) {
+function PulseTile({
+  href,
+  label,
+  value,
+  valueLabel,
+  icon: Icon,
+  art,
+}: {
+  href: string;
+  label: string;
+  value: string;
+  /** Šta čitač ekrana kaže umesto `value` (npr. „7. mesto na listi" umesto „#7"). */
+  valueLabel?: string;
+  icon: LucideIcon;
+  /** Nalepnica umesto ikonice (medalja za prva tri mesta). */
+  art?: ReactNode;
+}) {
   return (
     // Pločica je samostalna kartica na tabli, pa ide na card tier (16px) kao i prozori
     // ispod nje; brojka je jedini razlog zbog kog pločica postoji, pa nosi `type-h1`.
@@ -245,15 +263,28 @@ function PulseTile({ href, label, value, icon: Icon }: { href: string; label: st
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="type-eyebrow text-muted transition-colors duration-200 group-hover:text-yellow">{label}</p>
-          <p className="mt-2 type-h1 text-ink">{value}</p>
+          <p className="mt-2 type-h1 tabular-nums text-ink">
+            {valueLabel ? (
+              <>
+                <span aria-hidden="true">{value}</span>
+                <span className="sr-only">{valueLabel}</span>
+              </>
+            ) : (
+              value
+            )}
+          </p>
         </div>
-        <span className="inline-flex size-9 shrink-0 items-center justify-center surface-media border-2 border-ink bg-paper-strong text-ink transition duration-200 group-hover:border-yellow group-hover:bg-yellow group-hover:text-ink">
-          <Icon aria-hidden="true" className="size-4" />
-        </span>
+        {art ?? (
+          <span className="inline-flex size-9 shrink-0 items-center justify-center surface-media border-2 border-ink bg-paper-strong text-ink transition duration-200 group-hover:border-yellow group-hover:bg-yellow group-hover:text-ink">
+            <Icon aria-hidden="true" className="size-4" />
+          </span>
+        )}
       </div>
     </Link>
   );
 }
+
+const RANK_MEDAL_ART = { zlato: "rang.zlato", srebro: "rang.srebro", bronza: "rang.bronza" } as const;
 
 export function DashboardPulse({
   locale,
@@ -266,14 +297,23 @@ export function DashboardPulse({
   creditsBalance: number;
   unreadMessages: number;
   notifications: number;
+  /** Mesto na NEDELJNOJ listi (`overview.leaderboard`); `null` dok nema XP-a ove nedelje. */
   rank: number | null;
 }) {
+  const rankView = rankChipView(rank, locale);
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <PulseTile href={withLocale(locale, "/app/credits")} label={tr(locale, "Krediti", "Credits")} value={String(creditsBalance)} icon={Coins} />
       <PulseTile href={withLocale(locale, "/app/messages")} label={tr(locale, "Poruke", "Messages")} value={String(unreadMessages)} icon={MessageCircle} />
       <PulseTile href={withLocale(locale, "/app/community/notifications")} label={tr(locale, "Obaveštenja", "Notifications")} value={String(notifications)} icon={Bell} />
-      <PulseTile href={withLocale(locale, "/app/community/leaderboard")} label={tr(locale, "Rang", "Rank")} value={rank != null ? `#${rank}` : "—"} icon={Trophy} />
+      <PulseTile
+        href={withLocale(locale, "/app/community/leaderboard")}
+        label={tr(locale, "Rang", "Rank")}
+        value={rankView.text}
+        valueLabel={rankView.label}
+        icon={Trophy}
+        art={rankView.medal ? <IgraArt id={RANK_MEDAL_ART[rankView.medal]} size={36} decorative /> : undefined}
+      />
     </div>
   );
 }

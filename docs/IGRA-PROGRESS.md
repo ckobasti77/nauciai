@@ -465,3 +465,120 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 
 ## K07 - Plan: kontrolna tabla i učionica   (2026-10-14 03:53)
 **Plan korak.** Plan je upisan u `docs/igra/planovi/K07.md`. Nije menjan kod.
+
+## K08 — Kontrolna tabla   (2026-10-14 04:35)
+**Fajlovi:**
+- novi (tabla): `components/app/dashboard-home.tsx` (`DashboardHome`, `LiveDashboardHome`, traka „sve spremno")
+- novi (IGRA komponente): `components/igra/igra-hero.tsx`, `ink-calendar.tsx`, `progress-ring.tsx`, `components/igra/dashboard/dashboard-hero.tsx`, `dashboard-mascot.tsx`, `crea-quick-start.tsx`
+- novi (lib): `lib/igra-daypart.ts`, `lib/igra-mission.ts`, `lib/igra-calendar.ts` + testovi `lib/igra-daypart.test.ts`, `lib/igra-mission.test.ts`, `lib/igra-calendar.test.ts`, `lib/igra-dashboard.test.ts`
+- novi (izlog): `components/igra/izlog/izlog-tabla.tsx`, `docs/igra/snimci/K08-*.png` (14)
+- izmenjeni (tabla): `app/[locale]/app/page.tsx` (doba dana + sklapanje table), `components/app/dashboard.tsx` i `dashboard-live.tsx` (sada samo stranica kursa), `components/app/dashboard-content.tsx` (tabla i stari heroj izašli, `DashboardFirstRun embedded`, skeleti), `components/app/dashboard-windows.tsx` (samo 4. pločica pulsa)
+- izmenjeni (ostalo): `app/globals.css` (token `--igra-scene-paper` + klasa `bg-igra-scene-paper`), `lib/igra-copy.ts` (`IGRA_DASHBOARD_COPY`), `lib/igra-fixtures.ts` (`DASHBOARD_OVERVIEW_FIXTURES`), `lib/igra-css.test.ts`, `lib/igra-izlog.test.ts`, `components/igra/izlog/registry.ts`, `scripts/check-frames.mjs` (`ROOTS`)
+
+**Šta je urađeno:** Kontrolna tabla (`/app`) ima nov raspored po planu K07: heroj (scena po dobu dana u Beogradu, pozdrav, Robijeva rečenica i misija dana sa jednim dugmetom), prvi koraci dok ih ima, kartica napretka (pečat nivoa, XP kao odometar, traka, plamen niza), puls od 4 pločice (četvrta je mesto na nedeljnoj listi, sa medaljom za prva tri mesta), polica bedževa + Crea brzi start (Piksi / Kadar / Eho), postojeći prozori i mastilo-kalendar umesto stubića. „Nastavi kurs" je misija dana: kad lekcija čeka, heroj nosi prsten mesta u kursu („4/9") i dugme „Nastavi lekciju". Doba dana računa server (`igraDaypartNow()` u `page.tsx`), pa su scena i pozdrav u HTML-u pre podataka; misija, napredak i ostalo dok čekaju crtaju skelete iste visine u ISTOM stablu (heroj se ne zamenjuje). Tabla ne pravi svoj upit za napredak: čita `useIgraProgress()` iz ljuske, a kad napretka nema (`null`) njegove sekcije se ne crtaju i ostatak radi. 3D maskota (postojeći `CreaMascot`) se montira samo na širokom ekranu sa mišem, uz dozvoljen pokret, bez štednje podataka i tek kad pregledač miruje. Izlog je dobio deo „Kontrolna tabla" (`/igra-izlog?deo=tabla&stanje=novi|aktivan|legenda`) koji crta PRAVU `DashboardHome` nad test podacima, sa prekidačima za doba dana, učitavanje, tablu bez napretka i dan koji još nije upisan.
+
+**Površine:**
+- gotovo: kontrolna tabla 6.2 (heroj, misija, napredak, puls, bedževi, Crea brzi start, kalendar; prazna stanja novog korisnika; učitavanje; tamna tema; 390 px; engleski).
+- nije dirano (po planu): `DashboardWindowsGrid` i admin prozori (K21), `convex/dashboard.ts`, `lib/dashboard-first-run.ts`, `lib/dashboard-zones.ts`, rute, auth.
+- stranica kursa (`DashboardContent`) je ista; promenio se samo fajl koji je sklapa (vidi ODLUKU 2).
+
+**Kako se koristi (za K09–K13):**
+- `<IgraHero art="scena.…" locale greeting={…} aside={…}>{sadržaj}</IgraHero>`: scena je pozadina cele kartice (crtež desno, prazan papir levo), kartica je svetlo ostrvo. Jedini `priority` na strani. Važi za scene koje imaju prazan levi deo; pre upotrebe druge scene pogledati sliku.
+- `<ProgressRing progress={0..1} label="…">33 %</ProgressRing>` (56 px, naziv za čitač ekrana daje pozivalac): za kartice kurseva u K09.
+- `<InkCalendar activity={[{ day, completed }]} todayKey recent? note? locale />`: za profil u K13 (isti oblik `activity` kao `overview.activity`).
+- Nov IGRA kod za jednu stranu NE uvoziti u `components/app/dashboard-content.tsx`: taj fajl se preko `app/[locale]/app/loading.tsx` učitava na svakoj ruti aplikacije (čuva test u `lib/igra-dashboard.test.ts`).
+- `pickDailyMission(input, locale)` u `lib/igra-mission.ts` vraća gotov tekst i adresu; prsten kroz `missionRingProgress` / `missionRingLabel`.
+
+**ODLUKE K07 (iz plana `docs/igra/planovi/K07.md` §6, sprovedene ovde):**
+1. „Nastavi kurs" je misija dana u heroju, ne posebna kartica; `ResumeHero` je uklonjen.
+2. Misija se u heroju crta bez primitiva `DailyMission` (primitiv nosi svoj okvir i svog lika).
+3. U heroju nema nalepnice Robija (Robi je na sceni).
+4. Pozdrav i Robijeva rečenica zavise samo od doba dana.
+5. Mesto na listi je 4. pločica pulsa iz `overview.leaderboard`; `ProgressCard` je u svom redu.
+6. Kalendar čita `overview.activity` (UTC dan, samo lekcije) i dopunjuje poslednjih 14 dana iz `streak.recent`; `convex/dashboard.ts` nije diran. Lekcija između 00:00 i 02:00 po Beogradu pada u prethodni dan (zatečeno).
+7. Misija: nepoznat podatak preskače pravilo; Crea se predlaže pre „još jedne lekcije" kad je dan već upisan.
+8. Bez novih slika.
+(Odluke 8–11 iz plana tiču se K09 i K10.)
+
+**ODLUKE K08 (odstupanja od plana i ono što plan nije rekao):**
+1. **Scena je pozadina CELE kartice heroja, ne medij u desnoj koloni.** Sve četiri `scena.dashboard-*` su crtane sa crtežom u desnih ~55 % i praznim papirom levo; kao slika u okviru ostavljale bi pola kadra praznog. Zato je heroj jedan list papira: scena uz desnu ivicu (leva ivica se pretapa maskom), tekst levo. Za to je uveden token `--igra-scene-paper: #fcf5e1` (prosek praznog dela četiri scene, izmereno #fbf3de–#fdf6e3), isti u obe teme. Heroj je `paper-island`, dakle svetao list i u tamnoj temi. Na telefonu i tabletu scena je traka na vrhu, a pozdrav stoji u njenom levom, praznom delu.
+2. **Tabla je izdvojena u `components/app/dashboard-home.tsx`.** `dashboard-content.tsx` se preko `loading.tsx` i kartica kurseva učitava na svakoj ruti aplikacije, pa bi heroj, kalendar, manifest slika i katalog bedževa ušli svuda. Posledice: `StudentDashboard` i `LiveStudentDashboard` sada crtaju samo stranicu kursa (`courseSlug` je obavezan), a `/app/page.tsx` sam bira živu ili statičku tablu. Ponašanje stranice kursa je isto. Ostale rute su zbog toga LAKŠE za 4–6 KB (tabela dole).
+3. **Kalendar je 26 nedelja (na telefonu poslednjih 13), bez prekidača.** Plan je predviđao 5 ili 13 nedelja uz prekidač 30d / 90d; mreža od 5 nedelja je 156 px u kartici od 1.100 px. Ovako je jedna mirna slika i jedna kontrola manje. Bez dana u nedelji i meseci na osama: ispod stoje samo prvi datum i „danas".
+4. **Pločica mesta zadržava natpis „Rang"** (plan: „Ova nedelja"): „OVA NEDELJA" se na 390 px lomi u dva reda i broj spušta ispod suseda. XP nedelje se u pločici ne ispisuje (pločice bi imale različite visine). Čitač ekrana čuje „7. mesto na listi"; bez mesta stoji crta i „Još bez mesta na listi".
+5. **3D maskota tek od 1.400 px širine** (ne od `lg`): tek tu između teksta i crteža ima mesta. `CreaMascot` ispod platna drži poster dok 3D ne stigne (plan je rekao „bez postera"): to je podloga istog kadra na trenutak, a ostaje ako WebGL ne proradi.
+6. **Polica bedževa i kalendar stižu kroz `next/dynamic`.** Bez toga je `/app` bio 296 KB (budžet 294); sa tim je 291. Budžet nije diran. Obe sekcije su ispod prevoja, a mesto im dok ne stignu drži blok iste visine.
+7. **Misija čeka i napredak** (`igra === undefined` → skelet), jer `todayDone` menja izbor; inače bi se naslov promenio pred očima. Kad napretka nema (`null`), računa se kao da dan nije upisan.
+8. **Pozdrav koristi ime, ne ime i prezime**, kad `firstName` postoji (na telefonu pozdrav staje u levi deo scene). Bez imena ostaje sam pozdrav; „Student" se više ne ispisuje.
+9. **`DashboardFirstRun` je dobio `embedded`** (tabla): bez pozdrava i žutog dugmeta, naslov kao `<h2>`. Učionica ga crta kao i pre. Naslov strane (`<h1>`) je naslov misije.
+10. **Uklonjeno jer je ostalo bez pozivaoca:** `ResumeHero`, `HeroCover`, `ActivityPanel`, `dailyActivitySeries`. Traka „sve spremno" je premeštena u `dashboard-home.tsx` bez izmene.
+11. **Skeleti table** su usklađeni sa novim rasporedom i prebačeni sa `rounded-[16px]` / `rounded-[8px]` na `surface-card` (pločice pulsa su i inače 16 px); skelet prozora ima 6 blokova, koliko tabla ima prozora.
+12. **`ProgressRing` prima gotov naziv** (plan je predviđao `progressRingView` u `lib/igra-a11y.ts`): tekst prstena misije je u `lib/igra-mission.ts`, a `igra-a11y` ostaje lagan (čita ga ljuska).
+13. **`IgraHero` ima manji API nego u K01 §6** (`art`, `greeting`, `children`, `aside`): bez `eyebrow` / `subtitle` / `actions` i bez `.igra-paper` teksture (scena već nosi papir). Proširuje ga korak kome zatreba.
+14. **`check:frames`:** u `ROOTS` su dodati `components/app/dashboard-home.tsx` i `components/app/dashboard-windows.tsx` (oba prolaze). `dashboard-content.tsx` nije dodat (stranica kursa nosi stari dug).
+15. **Datum ispod kalendara je numerički** („20.04."), kao na starom grafikonu, da server i pregledač ne ispišu različitu skraćenicu meseca.
+16. `IGRA_PLANNED_ART` i dalje ima tri reda (`lib/igra-art.ts` nisam dirao).
+
+**Novi paketi:** nema.
+
+**Testovi (4 nova fajla, 43 testa; +1 u postojećem):**
+- `lib/igra-daypart.test.ts` (7): granice doba dana, loš ulaz, sat u Beogradu zimi i leti (04:59 / 05:00 / 10:59 / 11:00 / 16:59 / 17:00 / 21:59 / 22:00), scena u manifestu, pozdrav sa imenom i bez, Robijeve rečenice na oba jezika bez reči pretnje.
+- `lib/igra-mission.test.ts` (13): svih šest pravila i njihov redosled, prva lekcija, nepoznat podatak, engleski i adrese kroz `lib/app-routes`, ceo tekst + slika lika + bez reči pretnje i nagrade, prsten (udeo, loš ulaz, naziv).
+- `lib/igra-calendar.test.ts` (11): stepeni mastila, pune nedelje od ponedeljka, dani posle današnjeg, ponedeljak i nedelja, dopuna iz niza (samo aktivni dani, zamrznut ne), stara aktivnost, 13 nedelja za telefon, rečenica za čitač ekrana, neispravan dan.
+- `lib/igra-dashboard.test.ts` (12): test korisnici kroz ista pravila kao tabla (misija novog / aktivnog / legende, dani niza = dani lekcija) + čitanje izvora: delovi table bez upita i test podataka, slike samo kroz `IgraArt`, jedna prioritetna slika, maskota samo kroz `next/dynamic` bez SSR-a, tabla čita napredak iz ljuske (jedan `useQuery` u celom fajlu), IGRA kod nije u `dashboard-content.tsx`, doba dana računa server.
+- izmenjeni: `lib/igra-css.test.ts` (token `--igra-scene-paper` u svetlom skupu i kao klasa, nema tamnog parnjaka), `lib/igra-izlog.test.ts` (deo „tabla").
+
+**Slike:** `scena.dashboard-jutro|dan|vece|noc`, `lik.piksi.mase`, `lik.kadar.mase`, `lik.eho.mase`, likovi misije (`lik.sova.mase|misli`, `lik.piksi.mase`, `lik.iskra.mase`), `rang.zlato|srebro|bronza`, a kroz primitive porodice `nivo.*`, `bedz.*` i `rang.plamen`. TRAŽENE SLIKE: nema.
+
+**Rezultat provere:**
+- codegen: nije potreban (`convex/` nije diran)
+- typecheck: prošlo (i posle build-a)
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (304 fajla, 3.359 testova)
+- check:frames, check:corners, check:white, check:igra (i `--strict`): prošlo
+- build: prošao (tri puta, svaki iz prvog pokušaja); `next start` (port 3124): `/` 200, `/igra-izlog`, `/igra-izlog?deo=tabla` i `/en/igra-izlog?deo=tabla` 404, `/app` 307 na prijavu, `sitemap.xml` bez izloga
+- **check:bundle: prošlo.**
+
+| Šta (gzip) | Posle K06 | Posle K08 | Granica |
+|---|---|---|---|
+| `/app` početni JS | 275 KB | 291 KB | 294 |
+| `/app/classroom` | 297 | 291 | 315 |
+| `/app/classroom/courses/[courseSlug]` | — | 285 | 309 |
+| `/app/community/leaderboard` | 284 | 280 | 303 |
+| `/app/members/[username]` | 352 | 347 | 371 |
+| `/app/studio` | 546 | 542 | 595 |
+| javna početna | 139 | 139 | 153 |
+
+- **pregledač (Playwright, 1440 × 900 i 390 × 844, obe teme, sr i en), izmereno u izlogu nad pravom `DashboardHome`:**
+  - scena je u HTML-u sa servera (`loading="eager"`, `fetchPriority="high"`) i React za nju sam dodaje `<link rel="preload" as="image">`; to je jedina prioritetna slika na strani
+  - LCP element je scena heroja i crta se u istom frejmu kao prvi sadržaj (220 ms na 1440, 184 ms na 390, razvojni server); CLS 0 na 390 i 0,0012 na 1440
+  - LCP pod usporenom mrežom (CDP, bez keša, razvojni server; scena je 99 KB): brza 4G (9 Mbit/s, 60 ms) prvi sadržaj 508 ms / LCP 592 ms na 1440 i 536 / 576 ms na 390; spora 4G (1,6 Mbit/s, 150 ms) prvi sadržaj 748 ms / LCP 1.744 ms na 1440 i 748 / 1.740 ms na 390. Na sporoj vezi scena dakle stiže oko 1 s posle prvog teksta. U oba slučaja LCP pada PRE nego što stigne JavaScript strane (razvojni bundle od 6 MB: 6,3 s, odnosno 34 s; produkcioni je 291 KB gz), jer slika ne čeka ni hidrataciju ni upit
+  - učitavanje ↔ podaci (aktivan korisnik), visine sekcija u px: računar 396 / 148 / 94 / 244 / 1.296 / 259 naspram 404 / 148 / 94 / 244 / 1.279 / 256; telefon 611 / 356 / 188 / 405 naspram 617 / 345 / 187 / 459 (polica na telefonu je 54 px viša od svog skeleta: skelet primitiva iz K05 nema link „Svi bedževi"; to je ispod prevoja)
+  - telefon: nema nijednog zahteva za GLB, Draco ni poster maskote, nema platna; nema vodoravnog skrola (i na 768, 1024 i 1280); dugme misije je 508 px od vrha heroja, pa je u prvom ekranu
+  - računar: GLB i Draco se traže tek kad pregledač miruje, jedno platno; uz „smanji pokrete" maskota se ne montira (0 platna, u heroju samo slika scene), a XP je odmah ispisan
+  - bez slika (blokiran `/brand/igra/**`): 0 slika, 9 fallback-a, ista visina heroja (404 px) i cele strane (2.909 px); scena postaje papir sa mrežom
+  - širine sadržaja kao u aplikaciji: 714 px (ekran 1024 sa sidebarom) heroj je 580 px visok i crtež je krupno isečen uz desnu ivicu; 970 px (ekran 1280) 439 px; 1.130 px (ekran 1440) 404 px
+  - pločice pulsa na 390 px: sve četiri 87 px, broj na istoj visini (41 px od vrha)
+  - mete: u novim delovima table sve su ≥ 44 px; ispod praga su samo zatečeni redovi u prozorima (40 px, `DashboardWindowsGrid`, nije diran)
+  - naslovi: jedan `<h1>` (misija), `<h2>` „Šta praviš danas?" i „Tvoj trag"; redosled fokusa u heroju: dugme misije, pa „Otvori učionicu"
+  - konzola bez grešaka i bez upozorenja o hidrataciji; jedino upozorenje je zatečeno `THREE.Clock` iz maskote
+- impeccable detektor nad novim fajlovima: bez nalaza
+- dev server i `next start` su ugašeni (portovi 3000 / 3123 / 3124 slobodni, nijedan `next` ni `convex` proces); Playwright `page-*.yml` i `console-*.log` su obrisani.
+
+**Prihvatanje (K08):**
+- Izgleda kao „igra u svesci", radi bez slika: **ispunjeno** (snimci `K08-tabla-*`, `K08-heroj-*`, `K08-tabla-bez-slika-*`).
+- Brza je: **delimično ispunjeno.** Početni JS je u budžetu (291 / 294 KB), 3D i GLB se ne traže na telefonu, CLS je 0–0,0012, a LCP nove table je izmeren (gore). Deo „LCP ne gori od pre" je **BLOKADA 1** (dole): poređenja sa starom tablom nema.
+- typecheck / lint / test / check:frames prolaze, sekcija K08 u progress-u: **ispunjeno**.
+
+**BLOKADA 1 — „LCP ne gori od pre" nije izmereno kao poređenje.** Razlog: i stara i nova tabla žive iza prijave, a Playwright nije prijavljen (auth tok se ne dira, tuđe lozinke se ne unose). Stara tabla se ne može izmeriti ni u izlogu, jer je njen LCP zavisio od onoga čega u izlogu nema: do odgovora upita `getDashboardOverview` crtala je prazne blokove, pa je najveći element stizao tek posle celog početnog JS-a (275 KB gz), hidratacije i Convex upita. Šta JESTE izmereno: LCP nove table je scena heroja, koja je u HTML-u sa servera i ne čeka ni JS ni upit (brza 4G 0,6 s, spora 4G 1,7 s, razvojni server). Iz toga sledi da nova tabla ne može imati gori LCP od stare na istoj vezi, ali to je zaključak iz redosleda učitavanja, ne broj „pre / posle". Šta treba da se uradi: Lighthouse nad `/app` na prijavljenom nalogu, pre i posle ovog commita (K28 ili Jovan ručno).
+
+**BLOKADA 2 (samo provera, ne kod):** prava strana `/app` nad živim nalogom nije gledana u pregledaču, iz istog razloga kao u K06 (Playwright nije prijavljen, a auth tok se ne dira). Sve iznad je mereno u izlogu, koji crta istu `DashboardHome`. Nije potvrđen jedino tanak sloj `LiveDashboardHome` (upit `getDashboardOverview` + `useIgraProgress` → tabla) i `daypart` sa servera na pravoj ruti; pokriva ih typecheck i test nad izvorom, ne pregledač.
+
+**Za Jovana ujutru:**
+- **Prijavi se na DEV i otvori `/app`** (`npx next dev --webpack -p 3123`): ovo je prvi put da nova tabla radi nad pravim nalogom. Proveri da scena odgovara satu, da misija ima smisla za tvoj nalog i da se ništa ne pomera kad podaci stignu.
+- **3D maskota pored nacrtanog Robija** (snimci `K08-heroj-*`): dva Robija u različitom stilu, jedan do drugog. Zadatak je tražio maskotu na računaru, pa je tu; ako ti smeta, gasi se jednim propom (`mascot={false}` na `DashboardHero` u `dashboard-home.tsx`).
+- **Heroj je svetao list i u tamnoj temi** (ODLUKA 1, snimak `K08-tabla-1440-tamna.png`). Druga mogućnost bi tražila tamne verzije scena.
+- **Ton tekstova** u `IGRA_DASHBOARD_COPY` (`lib/igra-copy.ts`): četiri Robijeve rečenice, noćni pozdrav je samo „Zdravo, {ime}", misije „Još jedna lekcija?" i „Javi se zajednici".
+- **Redosled misije:** kad je dan već upisan, prvi rad u Crei i prva objava idu PRE „još jedne lekcije". Redosled je jedna funkcija (`pickDailyMission`), a test ga zaključava.
+- **Kalendar** broji lekcije po UTC danu (K07 ODLUKA 6) i prikazuje pola godine bez prekidača (ODLUKA 3).
+- **Zatečeno, nisam dirao:** redovi u prozorima table su visoki 40 px (ispod 44 px za dodir); u pločici „Obaveštenja" na 390 px natpis stoji tik uz ikonicu.
+- **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**

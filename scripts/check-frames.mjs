@@ -34,6 +34,8 @@ const ROOTS = [
   "components/app/community-thread-moderation.tsx",
   "components/app/public-community-comments.tsx",
   "components/app/member-profile.tsx",
+  "components/app/dashboard-home.tsx",
+  "components/app/dashboard-windows.tsx",
   "components/app/classroom-hub.tsx",
   "components/app/course-catalog-card.tsx",
   "components/app/admin-content-manager.tsx",
