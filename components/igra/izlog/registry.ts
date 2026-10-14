@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 
 import { IzlogCrea } from "@/components/igra/izlog/izlog-crea";
+import { IzlogKrediti } from "@/components/igra/izlog/izlog-krediti";
 import { IzlogLjuska } from "@/components/igra/izlog/izlog-ljuska";
 import { IzlogMapa } from "@/components/igra/izlog/izlog-mapa";
 import { IzlogPoruke } from "@/components/igra/izlog/izlog-poruke";
@@ -39,4 +40,5 @@ export const IZLOG_PARTS: readonly IzlogPart[] = [
   { id: "profil", label: { sr: "Profil", en: "Profile" }, Part: IzlogProfil },
   { id: "crea", label: { sr: "Crea", en: "Crea" }, Part: IzlogCrea },
   { id: "poruke", label: { sr: "Poruke", en: "Messages" }, Part: IzlogPoruke },
+  { id: "krediti", label: { sr: "Krediti i podešavanja", en: "Credits and settings" }, Part: IzlogKrediti },
 ];

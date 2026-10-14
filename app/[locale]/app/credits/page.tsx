@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
 import { CreditsPage } from "@/components/app/credits-page";
-import { Panel, SectionHeader } from "@/components/ui/primitives";
+import { AccountHead } from "@/components/igra/account/account-head";
+import { Panel } from "@/components/ui/primitives";
 import { appPageMetadata } from "@/lib/app-metadata";
 import { normalizeLocale } from "@/lib/i18n";
 
@@ -23,9 +24,8 @@ export default async function CreditsRoute({
   if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
     return (
       <div className="space-y-6">
-        <SectionHeader
-          variant="app"
-          underline
+        <AccountHead
+          art="ikona.krediti"
           title={locale === "sr" ? "Krediti" : "Credits"}
           body={
             locale === "sr"

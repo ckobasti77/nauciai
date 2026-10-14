@@ -1,8 +1,9 @@
 import { CreditCard, Globe2, UserRound } from "lucide-react";
 
+import { AccountHead } from "@/components/igra/account/account-head";
 import { PortalButton } from "@/components/app/checkout-button";
 import { ProfileEditor } from "@/components/app/profile-editor";
-import { Panel, SectionHeader } from "@/components/ui/primitives";
+import { Panel } from "@/components/ui/primitives";
 import { courses, studentProfile } from "@/lib/content";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { dictionary, localized, type Locale } from "@/lib/i18n";
@@ -32,9 +33,8 @@ export function ProfilePage({ locale, profile }: { locale: Locale; profile?: Vie
 
   return (
     <div className="space-y-6">
-      <SectionHeader
-        variant="app"
-        underline
+      <AccountHead
+        art="ikona.podesavanja"
         title={locale === "sr" ? "Profil" : "Profile"}
         body={locale === "sr" ? "Ime, avatar i jezik platforme." : "Name, avatar, and platform language."}
       />
@@ -62,9 +62,8 @@ export function BillingPage({ locale }: { locale: Locale }) {
 
   return (
     <div className="space-y-6">
-        <SectionHeader
-          variant="app"
-          underline
+        <AccountHead
+          art="ikona.krediti"
           title={locale === "sr" ? "Pretplata" : "Billing"}
           body={
             locale === "sr"
@@ -80,7 +79,7 @@ export function BillingPage({ locale }: { locale: Locale }) {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <PortalButton locale={locale} label={t.portal} />
-              <div className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper px-5 text-sm font-extrabold text-ink">
+              <div className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper px-5 text-sm font-extrabold text-ink">
                 <CreditCard className="size-4" />
                 9,99 EUR
               </div>

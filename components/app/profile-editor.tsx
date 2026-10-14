@@ -29,7 +29,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
-import { LinkButton, Panel, SectionHeader, cn } from "@/components/ui/primitives";
+import { AccountHead } from "@/components/igra/account/account-head";
+import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import { HelpSettings } from "@/components/app/help-settings";
 import { useToast } from "@/components/ui/toast-provider";
 import { Spinner } from "@/components/ui/spinner";
@@ -641,9 +642,8 @@ export function ProfileEditor({
           </div>
         </div>
       ) : null}
-      <SectionHeader
-        variant="app"
-        underline
+      <AccountHead
+        art="ikona.podesavanja"
         title={t(locale, "Profil", "Profile")}
         body={t(
           locale,

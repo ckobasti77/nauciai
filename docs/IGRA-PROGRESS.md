@@ -1321,3 +1321,34 @@ Jovan ručno: uključi `crea_public_gallery` na DEV-u i otvori `/crea/galerija` 
 
 **BLOKADA (prihvatanje „obe teme i telefon", delimično):** prave strane `/app/messages` i „Uči zajedno" traže prijavu kroz auth tok koji se ne dira, a Playwright MCP radi sa `--isolated` bez sačuvane sesije (isto ograničenje kao K06–K17). Zato su ekrani provereni u izlogu sa istim komponentama: 1440 svetla i tamna, 390 svetla (`K18-poruke-390-svetla.png`) i tamna, bez slomljenih slika i bez vodoravnog skrola.
 **Za Jovana ujutru:** kao prijavljen otvori `/app/messages` sa praznim nalogom (lista, desna strana, pretraga „zzzz", novi razgovor bez poruka, „Uči zajedno") i pošalji poruku i reaguj sa 👍; uporedi sa `K18-poruke-1440-svetla.png`. Ukus: da li je Eho u listi na računaru bolji od iste slike dvaput (ODLUKA 2).
+
+## K19 — Krediti, naplata, podešavanja   (2026-10-14 10:40)
+**Fajlovi:**
+- novi: `components/igra/account/account-head.tsx` (`AccountHead`), `components/igra/account/account-empty.tsx` (`CreditsNoPacks`, `CreditsNoHistory`, `ApiKeysEmpty`, `HelpTopicsEmpty`), `components/igra/izlog/izlog-krediti.tsx`, `lib/igra-credits.test.ts`, `docs/igra/snimci/K19-krediti-1440-svetla|tamna.png`, `K19-krediti-390-tamna.png`, `K19-krediti-novi-390-svetla.png`
+- izmenjeni: `components/app/credits-page.tsx` (prikaz izdvojen u `CreditsView`), `profile-billing.tsx`, `api-keys-page.tsx`, `help-settings.tsx`, `profile-editor.tsx` (samo zaglavlje), `app/[locale]/app/credits/page.tsx` i `app/[locale]/app/profile/api-keys/page.tsx` (zaglavlje u strani bez backenda), `components/igra/izlog/registry.ts` (deo „krediti"), `lib/igra-fixtures.ts` (`CREDITS_FIXTURES`), `lib/igra-izlog.test.ts`, `scripts/check-frames.mjs` (4 fajla u `ROOTS`)
+
+**Šta je urađeno:** Krediti, pretplata, profil i API ključevi imaju isto zaglavlje (`AccountHead`): ikona strane uz naslov (`ikona.krediti` za kredite i pretplatu, `ikona.podesavanja` za profil i ključeve), a na kreditima i Robi koji razmišlja od `lg`. Pomoć zajednice nosi `ikona.pomoc` umesto kruga sa ikonom. Prazna stanja imaju ilustracije: paketi (`prazno.uskoro`), istorija (`ikona.krediti`), API ključevi (`prazno.zakljucano`), teme pomoći (`prazno.uskoro`). Hijerarhija je mirnija: pretplata više nije žuti blok sa debelim okvirom, dugme „Izaberi paket" kad je stanje 0 više nije žuto, a kartice paketa i redovi istorije se odvajaju tankom `--line` linijom umesto punog okvira. Nema odometra, slavlja ni markera. Stranica kredita je razdvojena na `CreditsPage` (Convex pretplate) i `CreditsView` (prikaz iz props), pa je izlog crta sa test podacima.
+
+**Površine:** gotovo: krediti, pretplata (`/app/billing`), profil (zaglavlje), API ključevi, pomoć zajednice, studio krediti (isti `CreditsPage`). Nije dirano: Stripe rute, `CheckoutAction`, paketi, cene, `credits.*` upiti, `SpendLimitCard`.
+
+**ODLUKE:**
+1. **Jedna rečenica izmenjena:** gostu se više ne kaže „…i mogao/la da kupiš još" (sada samo „…koliko kredita imaš."), jer plan traži bez „kupi još" pritiska. To nije tekst uslova.
+2. **Dugme „Izaberi paket" (stanje 0) je papirno**, ne žuto, i pretplata je obična kartica; ostala dugmad za kupovinu su ista (tok plaćanja se ne dira).
+3. **Naslov „Nijedan paket nije u prodaji" + ilustracija** u praznim paketima: tekst je već postojao u `CREDITS_NO_PACKS`, ranije se prikazivao samo telo.
+4. **Povezane aplikacije** (prazna lista OAuth) zadržavaju ikonu `Plug`: nijedna spremna slika ne znači „nema veza", a `prazno.offline` bi zavaralo.
+5. **Cena „9,99 EUR" u pretplati** je `rounded-full` (čip cene, AGENTS.md); iznos je isti. Okviri u `help-settings.tsx` i `credits-page.tsx` su preseljeni na `border border-line`, a ta četiri fajla su u `check:frames` ROOTS.
+6. **Zatečeno, nije diran:** datumi na kreditima koriste `sr-RS` (ćirilica u mesecu, „октобар"); `api-keys-page.tsx` već koristi `sr-Latn-RS` sa komentarom. Brojevi i cene ostaju, pa to ostavljam Jovanu. `/app` budžet je sada 294/294 KB (zaokruživanje, K19 ne dira tu rutu).
+7. **Profil (`profile-editor.tsx`) menja samo zaglavlje**; ostatak je zatečen i van `check:frames` opsega.
+
+**Novi paketi:** nema.
+
+**Testovi:** `lib/igra-credits.test.ts` (9): slike spremne u manifestu; ikone po stranama; Robi samo na kreditima i samo od `lg`; bez odometra/slavlja/markera/XP-a; bez „kupiš još" i bez žutog CTA/debelog okvira; iste Stripe rute, cene, iznosi i redosled kartica; demo cena u pretplati; pozivi API ključeva i pomoći; test podaci izloga (stanje = zbir lotova, cene i krediti kao u `convex/seed.ts`). `lib/igra-izlog.test.ts`: deo „krediti".
+
+**Slike:** `ikona.krediti`, `ikona.podesavanja`, `ikona.pomoc`, `lik.robi.misli`, `prazno.uskoro`, `prazno.zakljucano`. Nove slike nisu tražene.
+
+**Rezultat provere:** codegen: nije potreban (`convex/` nije diran) / typecheck: prošlo / lint: prošlo (0 grešaka, istih 26 upozorenja) / test: prošlo (315 fajlova, 3.567 testova) / check:frames, check:corners, check:white, check:igra `--strict`: prošlo / build + check:bundle: prošlo.
+- Izlog (`/igra-izlog?deo=krediti`, stanja novi i aktivan), 1440 × 900 svetla i tamna, 390 × 844 tamna i svetla: 0 slomljenih slika, nema vodoravnog skrola, Robi sakriven na telefonu; isti iznosi na ekranu (1.250 kredita ≈ 104 slike; Starter 5,00 / Creator 15,00 / Pro 40,00 EUR; Premium 24,99 EUR). Dev server je ugašen (port 3123 slobodan), Playwright `page-*.yml` i `console-*.log` obrisani.
+
+**BLOKADA (samo provera, ne kod):** prave strane (`/app/credits`, `/app/billing`, `/app/profile`, API ključevi) traže prijavu kroz auth tok koji se ne dira, a Playwright MCP radi `--isolated` bez sesije (isto kao K06–K18). `CreditsView` u izlogu je ista komponenta koju prava strana renderuje; limit potrošnje (Convex kartica) u izlogu nije prikazan. Zaglavlja profila, ključeva i pomoći proverena su preko `AccountHead` i praznih stanja u izlogu, ne na pravim stranama.
+
+**Za Jovana ujutru:** kao prijavljen otvori `/app/credits` (stanje 0 i sa kreditima), `/app/billing`, `/app/profile` (zaglavlje i „Pomoć zajednice"), `/app/profile/api-keys`; uporedi sa `K19-krediti-1440-svetla.png`. Proveri da se nijedan broj ni cena nisu promenili. Ukus: `prazno.uskoro` (poklon) na praznim temama pomoći i paketima; Robi iznad kartice stanja na desktopu; datumi na ćirilici (ODLUKA 6).

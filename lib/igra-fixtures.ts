@@ -1005,3 +1005,71 @@ export function creaReportCardFixture(stanje: IgraFixtureId): ReportCard & { str
   const stickerIds = CREA_ALBUM_PAGES.flatMap((page) => page.stickers.map((sticker) => sticker.id)).slice(0, game.album.owned);
   return { ...buildReportCard({ stickerIds, lessonsDone: FIXTURE_LESSONS[stanje], bestStreak: game.streak.best }), streak: game.streak.current, bestStreak: game.streak.best };
 }
+
+/** Strana kredita (K19): ISTI oblik koji `CreditsView` prima od Convex upita. Cene su iz `convex/seed.ts`. */
+export type CreditsFixture = {
+  balance: FunctionReturnType<typeof api.credits.getBalance>;
+  lots: FunctionReturnType<typeof api.credits.getLots>;
+  packs: FunctionReturnType<typeof api.creditPacks.listPacks>;
+  models: FunctionReturnType<typeof api.modelCatalog.listModels>;
+  transactions: FunctionReturnType<typeof api.credits.getTransactions>["page"];
+};
+
+const CREDIT_PACK = (slug: string, title: string, priceEurCents: number, credits: number, bonusPercent: number, sortOrder: number) => ({
+  _id: `fixture-pack-${slug}` as Id<"creditPacks">,
+  slug,
+  titleSr: title,
+  titleEn: title,
+  priceEurCents,
+  credits,
+  bonusPercent,
+  stripePriceId: `fixture_price_${slug}`,
+  kind: "pack" as const,
+  planTier: undefined,
+  sortOrder,
+});
+
+export const CREDITS_FIXTURE_PACKS: CreditsFixture["packs"] = [
+  { ...CREDIT_PACK("premium", "Premium", 2499, 2000, 0, 20), kind: "plan", planTier: "premium" },
+  CREDIT_PACK("starter", "Starter", 500, 500, 0, 30),
+  CREDIT_PACK("creator", "Creator", 1500, 1650, 10, 40),
+  CREDIT_PACK("pro", "Pro", 4000, 4800, 20, 50),
+];
+
+const CREDITS_FIXTURE_MODELS: CreditsFixture["models"] = [
+  { slug: "fixture-image", kind: "image", labelSr: "Slika", labelEn: "Image", descriptionSr: "", descriptionEn: "", creditCost: 12, badge: "preporuceno", paramSchema: "{}", sortOrder: 1 },
+];
+
+const CREDITS_TX = (n: number, type: CreditsFixture["transactions"][number]["type"], amount: number, balanceAfter: number, daysAgo: number, spent: boolean) => ({
+  _id: `fixture-tx-${n}` as Id<"creditTransactions">,
+  amount,
+  type,
+  balanceAfter,
+  jobId: spent ? (`fixture-job-${n}` as Id<"generationJobs">) : undefined,
+  note: undefined,
+  createdAt: NOW - daysAgo * DAY_MS,
+});
+
+const creditBalance = (balance: number): CreditsFixture["balance"] => ({ balance, lifetimePurchased: balance, lifetimeSpent: 0, updatedAt: null });
+
+/** Tri test korisnika: bez kredita i bez istorije, sa 1.250 kredita (jedan lot ističe), sa 4.310. */
+export const CREDITS_FIXTURES: Record<IgraFixtureId, CreditsFixture> = {
+  novi: { balance: creditBalance(0), lots: [], packs: CREDITS_FIXTURE_PACKS, models: CREDITS_FIXTURE_MODELS, transactions: [] },
+  aktivan: {
+    balance: creditBalance(1250),
+    lots: [
+      { _id: "fixture-lot-1" as Id<"creditLots">, source: "purchase", granted: 1650, remaining: 250, grantedAt: NOW - 340 * DAY_MS, expiresAt: NOW + 12 * DAY_MS },
+      { _id: "fixture-lot-2" as Id<"creditLots">, source: "purchase", granted: 1000, remaining: 1000, grantedAt: NOW - 20 * DAY_MS, expiresAt: NOW + 345 * DAY_MS },
+    ] as CreditsFixture["lots"],
+    packs: CREDITS_FIXTURE_PACKS,
+    models: CREDITS_FIXTURE_MODELS,
+    transactions: [CREDITS_TX(1, "spend", -12, 1250, 0, true), CREDITS_TX(2, "spend", -12, 1262, 1, true), CREDITS_TX(3, "purchase", 1000, 1274, 20, false)],
+  },
+  legenda: {
+    balance: creditBalance(4310),
+    lots: [{ _id: "fixture-lot-3" as Id<"creditLots">, source: "purchase", granted: 4800, remaining: 4310, grantedAt: NOW - 30 * DAY_MS, expiresAt: NOW + 335 * DAY_MS }] as CreditsFixture["lots"],
+    packs: CREDITS_FIXTURE_PACKS,
+    models: CREDITS_FIXTURE_MODELS,
+    transactions: [CREDITS_TX(4, "spend", -12, 4310, 0, true), CREDITS_TX(5, "purchase", 4800, 4322, 30, false)],
+  },
+};

@@ -6,12 +6,14 @@ import { ArrowLeft, Check, Copy, KeyRound, Plug, Plus, Trash2, TriangleAlert } f
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
+import { ApiKeysEmpty } from "@/components/igra/account/account-empty";
+import { AccountHead } from "@/components/igra/account/account-head";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog, Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input } from "@/components/ui/field";
-import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
+import { Panel, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -391,16 +393,20 @@ export function ApiKeysPage({ locale }: { locale: Locale }) {
   }
 
   const header = (
-    <div className="space-y-3">
-      <Link
-        href={withLocale(locale, "/app/profile")}
-        className="inline-flex items-center gap-1.5 rounded-full text-sm font-extrabold text-muted hover:text-ink hover:underline focus-visible:outline-2 outline-offset-2 outline-ink"
-      >
-        <ArrowLeft className="size-4" />
-        {t.backToProfile}
-      </Link>
-      <SectionHeader variant="app" underline title={t.title} body={t.body} />
-    </div>
+    <AccountHead
+      art="ikona.podesavanja"
+      title={t.title}
+      body={t.body}
+      back={
+        <Link
+          href={withLocale(locale, "/app/profile")}
+          className="inline-flex items-center gap-1.5 rounded-full text-sm font-extrabold text-muted hover:text-ink hover:underline focus-visible:outline-2 outline-offset-2 outline-ink"
+        >
+          <ArrowLeft className="size-4" />
+          {t.backToProfile}
+        </Link>
+      }
+    />
   );
 
   if (authLoading || (isAuthenticated && (keys === undefined || connections === undefined))) {
@@ -451,16 +457,7 @@ export function ApiKeysPage({ locale }: { locale: Locale }) {
 
         {rows.length === 0 ? (
           <div className="p-5">
-            <EmptyState
-              icon={KeyRound}
-              title={t.emptyTitle}
-              body={t.emptyBody}
-              action={
-                <Button icon={<Plus className="size-4" />} onClick={() => setCreateOpen(true)}>
-                  {t.newKey}
-                </Button>
-              }
-            />
+            <ApiKeysEmpty locale={locale} onCreate={() => setCreateOpen(true)} />
           </div>
         ) : (
           // Lista, ne mreža: redove razdvaja jedna `--line` crta, ne po okvir na svakom.

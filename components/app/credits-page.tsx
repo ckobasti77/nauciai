@@ -2,12 +2,15 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { usePaginatedQuery, useQuery } from "convex/react";
-import { ArrowLeft, ArrowUp, Coins, CreditCard, Sparkles } from "lucide-react";
+import type { FunctionReturnType } from "convex/server";
+import { ArrowLeft, Coins, CreditCard, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import { SpendLimitCard } from "@/components/crea/fair/spend-limit-card";
-import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
+import { AccountHead } from "@/components/igra/account/account-head";
+import { CREDITS_PACKS_ANCHOR, CreditsNoHistory, CreditsNoPacks } from "@/components/igra/account/account-empty";
+import { Panel, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import {
@@ -24,9 +27,7 @@ import {
 } from "@/lib/credits-value";
 import { withLocale, type Locale } from "@/lib/i18n";
 import { ResendVerificationLink } from "@/components/studio/verify-email-panel";
-import { CREDITS_NO_BALANCE, CREDITS_NO_HISTORY, CREDITS_NO_PACKS, STUDIO_SHELL } from "@/lib/studio-messages";
-
-const PACKS_ANCHOR = "paketi";
+import { CREDITS_NO_BALANCE, STUDIO_SHELL } from "@/lib/studio-messages";
 
 function formatDate(timestamp: number, locale: Locale) {
   return new Date(timestamp).toLocaleDateString(locale === "sr" ? "sr-RS" : "en-US", {
@@ -124,6 +125,32 @@ function CheckoutAction({
   );
 }
 
+function CreditsHead({ locale, isStudio }: { locale: Locale; isStudio: boolean }) {
+  return (
+    <AccountHead
+      art="ikona.krediti"
+      robi
+      title={locale === "sr" ? "Krediti" : "Credits"}
+      body={
+        locale === "sr"
+          ? "Kredit je bod kojim se plaća svaka slika, video ili zvuk koji napraviš u Crei. Kupuju se jednom, važe 12 meseci i ne propadaju na kraju meseca."
+          : "A credit is a point that pays for every image, video or sound you make in Crea. Bought once, valid for 12 months, and they never expire at the end of a month."
+      }
+      back={
+        isStudio ? (
+          <Link
+            href={withLocale(locale, "/studio/app")}
+            className="inline-flex items-center gap-1.5 rounded-full text-sm font-extrabold text-muted hover:text-ink hover:underline focus-visible:outline-2 outline-offset-2 outline-ink"
+          >
+            <ArrowLeft className="size-4" />
+            {STUDIO_SHELL.backToStudio[locale]}
+          </Link>
+        ) : undefined
+      }
+    />
+  );
+}
+
 export function CreditsPage({
   locale,
   variant = "app",
@@ -152,29 +179,7 @@ export function CreditsPage({
     { initialNumItems: 10 },
   );
 
-  const header = (
-    <div className="space-y-3">
-      {isStudio ? (
-        <Link
-          href={withLocale(locale, "/studio/app")}
-          className="inline-flex items-center gap-1.5 rounded-full text-sm font-extrabold text-muted hover:text-ink hover:underline focus-visible:outline-2 outline-offset-2 outline-ink"
-        >
-          <ArrowLeft className="size-4" />
-          {STUDIO_SHELL.backToStudio[locale]}
-        </Link>
-      ) : null}
-      <SectionHeader
-      variant="app"
-      underline
-      title={locale === "sr" ? "Krediti" : "Credits"}
-      body={
-        locale === "sr"
-          ? "Kredit je bod kojim se plaća svaka slika, video ili zvuk koji napraviš u Crei. Kupuju se jednom, važe 12 meseci i ne propadaju na kraju meseca."
-          : "A credit is a point that pays for every image, video or sound you make in Crea. Bought once, valid for 12 months, and they never expire at the end of a month."
-      }
-      />
-    </div>
-  );
+  const header = <CreditsHead locale={locale} isStudio={isStudio} />;
 
   if (authLoading) {
     return (
@@ -194,8 +199,8 @@ export function CreditsPage({
         <Panel className="p-6">
           <p className="type-body type-measure font-bold text-muted">
             {locale === "sr"
-              ? "Prijavi se da bi video/la koliko kredita imaš i mogao/la da kupiš još."
-              : "Sign in to see how many credits you have and to buy more."}
+              ? "Prijavi se da bi video/la koliko kredita imaš."
+              : "Sign in to see how many credits you have."}
           </p>
           <Link
             href={
@@ -212,6 +217,44 @@ export function CreditsPage({
     );
   }
 
+  return (
+    <CreditsView
+      locale={locale}
+      isStudio={isStudio}
+      renderedAt={renderedAt}
+      balance={balance}
+      lots={lots}
+      packs={packs}
+      models={models}
+      transactions={transactions}
+      spendLimit={<SpendLimitCard locale={locale} />}
+    />
+  );
+}
+
+type CreditsViewProps = {
+  locale: Locale;
+  isStudio: boolean;
+  renderedAt: number;
+  balance: FunctionReturnType<typeof api.credits.getBalance> | undefined;
+  lots: FunctionReturnType<typeof api.credits.getLots> | undefined;
+  packs: FunctionReturnType<typeof api.creditPacks.listPacks> | undefined;
+  models: FunctionReturnType<typeof api.modelCatalog.listModels> | undefined;
+  transactions: {
+    status: "LoadingFirstPage" | "CanLoadMore" | "LoadingMore" | "Exhausted";
+    results: FunctionReturnType<typeof api.credits.getTransactions>["page"];
+    loadMore: (numItems: number) => void;
+  };
+  /** Lični dnevni limit (Convex kartica); izlog je izostavlja. */
+  spendLimit?: ReactNode;
+};
+
+/**
+ * Prikaz stranice kredita (K19): sve što korisnik vidi, bez Convex pretplata, pa ga izlog
+ * crta sa test podacima. Brojevi, cene i tok kupovine dolaze iz istih izvora kao i pre.
+ */
+export function CreditsView({ locale, isStudio, renderedAt, balance, lots, packs, models, transactions, spendLimit }: CreditsViewProps) {
+  const header = <CreditsHead locale={locale} isStudio={isStudio} />;
   const reference = referenceCreditCosts(models ?? []);
   const creditPacks = (packs ?? []).filter((pack) => pack.kind === "pack");
   const premium = (packs ?? []).find((pack) => pack.kind === "plan" && pack.planTier === "premium");
@@ -247,8 +290,8 @@ export function CreditsPage({
           </div>
           {balance !== undefined && currentBalance === 0 ? (
             <Link
-              href={`#${PACKS_ANCHOR}`}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition hover:-translate-y-0.5"
+              href={`#${CREDITS_PACKS_ANCHOR}`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
             >
               <Coins className="size-4" />
               {CREDITS_NO_BALANCE.cta[locale]}
@@ -270,10 +313,10 @@ export function CreditsPage({
       </Panel>
 
       {/* Lični dnevni limit potrošnje (Crea K28, U7). */}
-      {isAuthenticated ? <SpendLimitCard locale={locale} /> : null}
+      {spendLimit}
 
       {/* Paketi kredita: jednokratna kupovina kroz /api/stripe/credits. */}
-      <Panel id={PACKS_ANCHOR} className="p-6">
+      <Panel id={CREDITS_PACKS_ANCHOR} className="p-6">
         <h3 className="type-h2 text-ink">{locale === "sr" ? "Paketi kredita" : "Credit packs"}</h3>
         <p className="mt-2 type-body type-measure font-bold text-muted">
           {locale === "sr"
@@ -286,9 +329,7 @@ export function CreditsPage({
             <Spinner size="md" className="text-muted" />
           </div>
         ) : creditPacks.length === 0 ? (
-          <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
-            {CREDITS_NO_PACKS.body[locale]}
-          </p>
+          <CreditsNoPacks locale={locale} />
         ) : (
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             {creditPacks.map((pack) => {
@@ -296,7 +337,7 @@ export function CreditsPage({
               return (
                 <div
                   key={pack.slug}
-                  className="surface-inset flex flex-col gap-3 border-2 border-ink bg-paper p-4"
+                  className="surface-inset flex flex-col gap-3 border border-line bg-paper p-4"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="type-h3 text-ink">
@@ -342,10 +383,10 @@ export function CreditsPage({
       {/* Premium plan: pretplata, odvojena od paketa i vizuelno istaknuta.
           U studio varijanti se NE nudi - kursna pretplata je školska priča (F5). */}
       {premium && !isStudio ? (
-        <Panel className="border-4 bg-yellow/25 p-6">
+        <Panel className="p-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 py-1 type-eyebrow text-ink">
+              <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-paper px-3 py-1 type-eyebrow text-ink">
                 <Sparkles className="size-4" />
                 {locale === "sr" ? "Pretplata" : "Subscription"}
               </span>
@@ -403,24 +444,14 @@ export function CreditsPage({
             <Spinner size="md" className="text-muted" />
           </div>
         ) : transactions.results.length === 0 ? (
-          <div className="surface-inset mt-5 border-2 border-ink bg-paper p-6">
-            <p className="type-h3 text-ink">{CREDITS_NO_HISTORY.title[locale]}</p>
-            <p className="mt-1 type-body type-measure font-bold text-muted">{CREDITS_NO_HISTORY.body[locale]}</p>
-            <Link
-              href={`#${PACKS_ANCHOR}`}
-              className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
-            >
-              <ArrowUp className="size-4" />
-              {CREDITS_NO_HISTORY.cta[locale]}
-            </Link>
-          </div>
+          <CreditsNoHistory locale={locale} />
         ) : (
           <>
-            <ul className="mt-5 space-y-2">
+            <ul className="mt-5 divide-y divide-line border-y border-line">
               {transactions.results.map((transaction) => (
                 <li
                   key={transaction._id}
-                  className="surface-inset flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-2 border-ink bg-paper px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 py-3"
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-black text-ink">

@@ -25,6 +25,10 @@ import { join } from "node:path";
  */
 const ROOTS = [
   "components/igra/chat",
+  "components/app/credits-page.tsx",
+  "components/app/profile-billing.tsx",
+  "components/app/api-keys-page.tsx",
+  "components/app/help-settings.tsx",
   "app/[locale]/(marketing)/community",
   "app/[locale]/app/community",
   "app/[locale]/app/admin",

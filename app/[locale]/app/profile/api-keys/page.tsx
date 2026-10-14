@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
 import { ApiKeysPage } from "@/components/app/api-keys-page";
-import { Panel, SectionHeader } from "@/components/ui/primitives";
+import { AccountHead } from "@/components/igra/account/account-head";
+import { Panel } from "@/components/ui/primitives";
 import { appPageMetadata } from "@/lib/app-metadata";
 import { apiKeysContent, normalizeLocale } from "@/lib/i18n";
 
@@ -20,7 +21,7 @@ export default async function ApiKeysRoute({ params }: { params: Promise<{ local
   if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
     return (
       <div className="space-y-6">
-        <SectionHeader variant="app" underline title={t.title} body={t.body} />
+        <AccountHead art="ikona.podesavanja" title={t.title} body={t.body} />
         <Panel className="p-6">
           <p className="type-body type-measure font-bold text-muted">{t.noConvex}</p>
         </Panel>
