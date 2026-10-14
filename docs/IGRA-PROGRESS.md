@@ -1921,3 +1921,28 @@ Svaka `/app` ruta koja ne crta tablu ni kartice kurseva je lakša za 17,0 KB. Ta
 2. Javni sajt u tamnoj temi ima zatečen problem kontrasta: inicijali u zaglavlju i ime plana na ceni su svetli na žutom. K27 ga je slučajno popravio i za javni deo, a K29 je to vratio, jer javni sajt ne sme da se dira. Ako hoćeš popravku, to je jedno pravilo: ukloni `:has([data-igra-ui])`.
 3. OAuth pristanak (`/oauth/authorize`, prijavljen, sa važećim MCP klijentom): dugmad „Odbij" i „Dozvoli pristup" treba da budu bez tvrde senke, kao pre runa.
 4. Odluči o `sr-RS` → `sr-Latn-RS` (ODLUKA 5) i o `EmptyState` bez okvira u panelu (nalaz 27).
+
+## K30 — Završni izveštaj i snimci   (2026-10-14 16:20)
+**Fajlovi:** novi `docs/IGRA-REPORT.md`; snimci `docs/igra/snimci/K30-{ljuska,tabla,ucionica,mapa,zajednica,rang,profil,crea,admin,stanja}-{1440,390}-{svetla,tamna}.png` (40). Kod nije menjan.
+
+**Šta je urađeno:** Pročitan ceo progress (K01–K29) i napisan `docs/IGRA-REPORT.md`: urađeno po površini sa snimcima, šta nije, BLOKADE, ODLUKE koje traže Jovanov stav (15), paketi, Convex za deploy, slike, spisak ekrana za ručnu proveru (18 stavki), brojevi i zatečeni problemi. Snimci su iz izloga (`next dev --webpack -p 3123`, Playwright MCP, test korisnik „aktivan"), 10 glavnih površina × 1440 / 390 × svetla / tamna, sa skrolom do dna pre snimka (lenje slike); dugi delovi su odsečeni na 3.600 px (1440) / 5.200 px (390).
+
+**Površine:** nijedna nije menjana.
+
+**ODLUKE:**
+1. **10 površina × 4 = 40 snimaka** (granica 40): ljuska, tabla, učionica, mapa, zajednica, rang, profil, Crea, admin, stanja. Poruke i krediti nisu u K30 snimcima (najmanje izmene, pokriveni snimcima `K18-*` i `K19-*`); izveštaj upućuje na njih.
+2. **Snimci su odsečeni po visini**, ne ceo deo izloga (Crea je 15.000–23.000 px).
+3. **`npm run build` nije puštan** u K30: kod nije menjan, poslednji build (K29) je prošao, runner ga pušta posle koraka.
+4. **Deploy u izveštaju:** samo `npx convex deploy`, bez migracije (nova tabela `igraSeen` je prazna, `users.igraBanner` je opciono); uz upozorenje da se pre deploy-a proveri `CONVEX_DEPLOY_KEY` u ljusci.
+
+**Novi paketi:** nema.
+
+**Testovi:** nisu menjani.
+
+**Slike:** nema novih; tražene: nema.
+
+**Rezultat provere:** check:igra prošlo (123/123, 60 ID-jeva u kodu spremno) / check:frames prošlo / typecheck prošlo / lint prošlo (0 grešaka, 26 zatečenih upozorenja) / test prošlo (321 fajl, 3.633 testa) / codegen nije potreban. Snimci: 0 slomljenih slika, bez vodoravnog skrola na 40 / 40, konzola bez grešaka (samo zatečeno `THREE.Clock` i dev LCP upozorenje slike u izlogu). Dev server ugašen (3000 / 3123 slobodni), Playwright `console-*.log` obrisan.
+
+**BLOKADA:** nema nove; zbirne blokade runa su u `docs/IGRA-REPORT.md` §4.
+
+**Za Jovana ujutru:** počni od `docs/IGRA-REPORT.md` (§8 je spisak ekrana za proveru prijavljen). Na `K30-rang-390-*` „ti" red stoji preko podijuma: artefakt snimka cele strane (lepljiv red), ne greška.
