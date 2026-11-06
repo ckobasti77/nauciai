@@ -27,6 +27,11 @@ const patrickHand = Patrick_Hand({
   display: "swap",
 });
 
+// Google Tag Manager container; all measurement (GA4 etc.) is configured inside GTM.
+// Official snippet, inlined in <head> so it ships once per page in dev and prod alike.
+const GTM_ID = "GTM-KHH98CM9";
+const GTM_SCRIPT = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_ID}');`;
+
 // metadataBase lets relative OpenGraph images (course covers) and hreflang
 // alternates resolve to absolute URLs; without it Next warns and falls back to
 // localhost, giving crawlers unusable og:image / alternate URLs.
@@ -80,8 +85,17 @@ export default async function RootLayout({
       <head>
         {/* Runs before first paint so no route ever flashes the light theme. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: GTM_SCRIPT }} />
       </head>
       <body suppressHydrationWarning className="flex min-h-full flex-col">
+        <noscript>
+          <iframe
+            src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
+            height="0"
+            width="0"
+            style={{ display: "none", visibility: "hidden" }}
+          />
+        </noscript>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:flex focus:min-h-11 focus:items-center focus:rounded-full focus:border-2 focus:border-ink focus:bg-yellow focus:px-4 focus:text-sm focus:font-black focus:text-ink"
